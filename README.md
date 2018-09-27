@@ -1,5 +1,7 @@
 # Aligning Cadaster Maps with Remote Sensing Images
 
+![mapalignment_anim](projects/mapalign/mapalign_multires/com/inference_anim/render/mapalignment_anim.gif)
+
 This is the official code for the paper:
 
 **Aligning and Updating Cadaster Maps with Aerial Images by Multi-Task, Multi-Resolution Deep Learning**\
