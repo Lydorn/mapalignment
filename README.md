@@ -2,19 +2,19 @@
 
 This is the official code for the paper:
 
-**Aligning and Updating Cadaster Maps with Aerial Images by Multi-Task, Multi-Resolution Deep Learning**
+**Aligning and Updating Cadaster Maps with Aerial Images by Multi-Task, Multi-Resolution Deep Learning**\
 [Nicolas Girard](https://www-sop.inria.fr/members/Nicolas.Girard/),
 [Guillaume Charpiat](https://www.lri.fr/~gcharpia/),
-[Yuliya Tarabalka](https://www-sop.inria.fr/members/Yuliya.Tarabalka/)
+[Yuliya Tarabalka](https://www-sop.inria.fr/members/Yuliya.Tarabalka/)\
 ACCV 2018
 
 It can be adapted to implement the method of our previous paper:
 
-**Multimodal image alignment through a multiscale chain of neural networks with application to remote sensing**
+**Multimodal image alignment through a multiscale chain of neural networks with application to remote sensing**\
 [Armand Zampieri](https://www.linkedin.com/in/armand-zampieri-43a177ab/?locale=en_US),
 [Guillaume Charpiat](https://www.lri.fr/~gcharpia/),
 [Nicolas Girard](https://www-sop.inria.fr/members/Nicolas.Girard/),
-[Yuliya Tarabalka](https://www-sop.inria.fr/members/Yuliya.Tarabalka/)
+[Yuliya Tarabalka](https://www-sop.inria.fr/members/Yuliya.Tarabalka/)\
 ECCV 2018
 
 ### Python environment
