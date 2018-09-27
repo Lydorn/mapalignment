@@ -1,6 +1,6 @@
 # Aligning Cadaster Maps with Remote Sensing Images
 
-![mapalignment_anim](projects/mapalign/mapalign_multires/com/inference_anim/render/mapalignment_anim.gif)
+<img src="projects/mapalign/mapalign_multires/com/inference_anim/render/mapalignment_anim.gif" width="250" height="250" />
 
 This is the official code for the paper:
 
