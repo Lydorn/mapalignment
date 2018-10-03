@@ -1,3 +1,12 @@
+# Inference
+
+If you want to quickly perform inference on you own dataset, write a ```read.py``` script like this one: [read.py](../../../data/AerialImageDataset/read.py)
+to implement a ```load_gt_data()``` function that reads the specific format of your dataset and outputs the image, its metadata and its ground truth data
+in a consistent python format. Then duplicate and adapt these 2 scripts:
+- [config_test_inria.py](config_test_inria.align_osm_gt.py)
+- [2_test_aerial_image.align_osm_gt.py](2_test_aerial_image.align_osm_gt.py)
+Instructions in the scripts will help you in changing relevant parts (comments starting with "CHANGE").
+
 # Training
 
 This project uses a multi-resolution approach.
