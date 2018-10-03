@@ -14,7 +14,7 @@ import geo_utils
 DIR_PATH_LIST = ["./raw/train", "./raw/test"]
 
 IMAGE_DIR_NAME = "images"
-IMAGE_EXTENTION = "tif"
+IMAGE_EXTENSION = "tif"
 
 GT_POLYGONS_DIR_NAME = "gt_polygons"
 
@@ -40,7 +40,7 @@ def fetch_from_images_in_directory(dir_path):
         os.makedirs(gt_polygons_dir_path)
 
     images_dir_path = os.path.join(dir_path, IMAGE_DIR_NAME)
-    image_filepaths = python_utils.get_filepaths(images_dir_path, IMAGE_EXTENTION)
+    image_filepaths = python_utils.get_filepaths(images_dir_path, IMAGE_EXTENSION)
 
     for i, image_filepath in enumerate(image_filepaths):
         image_basename = os.path.basename(image_filepath)
