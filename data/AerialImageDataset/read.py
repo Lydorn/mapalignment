@@ -1,6 +1,4 @@
 import os.path
-import csv
-import sys
 import numpy as np
 
 import skimage.io
@@ -8,43 +6,43 @@ import skimage.io
 CITY_METADATA_DICT = {
     "bloomington": {
         "fold": "test",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "bellingham": {
         "fold": "test",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "innsbruck": {
         "fold": "test",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "sfo": {
         "fold": "test",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "tyrol-e": {
         "fold": "test",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "austin": {
         "fold": "train",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "chicago": {
         "fold": "train",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "kitsap": {
         "fold": "train",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "tyrol-w": {
         "fold": "train",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
     "vienna": {
         "fold": "train",
-        "pixelsize": 0.5,
+        "pixelsize": 0.3,
     },
 }
 
@@ -98,11 +96,6 @@ def load_gt_data(raw_dirpath, city, number):
 
     # Load CSV data
     gt_polygons = load_polygons(raw_dirpath, city, number)
-
-    # TODO: remove
-    # gt_polygons_filepath = get_polygons_filepath(raw_dirpath, city, number)
-    # visualization.save_plot_image_polygons(gt_polygons_filepath + ".polygons.png", image_array, [], gt_polygons, [])
-    # TODO end
 
     return image_array, image_metadata, gt_polygons
 
