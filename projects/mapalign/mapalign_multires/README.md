@@ -7,7 +7,7 @@ in a consistent python format. Then duplicate and adapt these 2 scripts:
 - [2_test_aerial_image.align_osm_gt.py](2_test_aerial_image.align_osm_gt.py)
 
 Instructions in the scripts will help you in changing relevant parts (comments starting with "CHANGE").
-You can read the next section to learn more about the details of the method.
+You can read the next sections to learn more about the details of the method.
 
 # Training
 
