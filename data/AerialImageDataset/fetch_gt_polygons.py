@@ -5,7 +5,6 @@ import numpy as np
 sys.path.append("../../../projects/utils")
 import python_utils
 import polygon_utils
-import image_utils
 import geo_utils
 
 
