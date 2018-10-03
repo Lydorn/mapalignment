@@ -10,7 +10,8 @@ This is the official code for the paper:
 [Nicolas Girard](https://www-sop.inria.fr/members/Nicolas.Girard/),
 [Guillaume Charpiat](https://www.lri.fr/~gcharpia/),
 [Yuliya Tarabalka](https://www-sop.inria.fr/members/Yuliya.Tarabalka/)\
-ACCV 2018
+ACCV 2018\
+**[[Paper](https://www-sop.inria.fr/members/Nicolas.Girard/pdf/Girard_2018_ACCV_paper.pdf)] [[Supplementary materials](https://www-sop.inria.fr/members/Nicolas.Girard/pdf/Girard_2018_ACCV_suppmat.pdf)]**
 
 It can be adapted to implement the method of our previous paper:
 
@@ -19,7 +20,8 @@ It can be adapted to implement the method of our previous paper:
 [Guillaume Charpiat](https://www.lri.fr/~gcharpia/),
 [Nicolas Girard](https://www-sop.inria.fr/members/Nicolas.Girard/),
 [Yuliya Tarabalka](https://www-sop.inria.fr/members/Yuliya.Tarabalka/)\
-ECCV 2018
+ECCV 2018\
+**[[Paper](https://hal.inria.fr/hal-01849389/file/2691.pdf)]**
 
 ### Python environment
 
