@@ -34,7 +34,9 @@ See the instructions in the [docker](docker) folder to install docker and build 
 
 4 pe-trained networks are available, one for each downsampling factor.\
 You can either: Execute the download script [download_pretrained.py](projects/mapalign/mapalign_multires/download_pretrained.py)\
-Or: manually download the zipfile at https://www-sop.inria.fr/members/Nicolas.Girard/downloads/mapalignment/runs.zip, extract and place the runs folder in the [projects/mapalign/mapalign_multires] folder so that the folder structure is [projects/mapalign/mapalign_multires/runs]
+Or: manually download the zipfile at https://www-sop.inria.fr/members/Nicolas.Girard/downloads/mapalignment/runs.zip,
+extract and place the runs folder in the [projects/mapalign/mapalign_multires](projects/mapalign/mapalign_multires) folder
+so that the folder structure is [projects/mapalign/mapalign_multires/runs](projects/mapalign/mapalign_multires/runs)
 
 ### Train your own models
 
