@@ -63,7 +63,7 @@ SEG_POLYGON_VERTEX_COEF = 10
 
 DISP_LOSS_COEF = 100
 SEG_LOSS_COEF = 50
-LAPLACIAN_PENALTY_COEF = 0  # Default: 10000  # TODO: experiment again with non-zero values (Now that the Laplacian penalty bug is fixed)
+LAPLACIAN_PENALTY_COEF = 0  # Good value to try: 10000
 
 # Each level's prediction has a different loss coefficient that can also be changed over time
 # Note: len(LEVEL_LOSS_COEFS_PARAMS) must be equal to MODEL_POOL_COUNT
