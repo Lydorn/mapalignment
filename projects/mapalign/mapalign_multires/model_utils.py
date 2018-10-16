@@ -10,7 +10,7 @@ sys.path.append("../../utils")
 import tf_utils
 
 # --- Params --- #
-DEBUG = False
+DEBUG = True
 
 # --- --- #
 
@@ -41,7 +41,6 @@ def conv_conv_pool(input_, n_filters, name="", pool=True, activation=tf.nn.elu, 
 
     with tf.variable_scope("layer_{}".format(name)):
         for i, F in enumerate(n_filters):
-            # net = tf.layers.conv2d(net, F, (3, 3), padding="VALID")
             net = tf_utils.complete_conv2d(net, F, (3, 3), padding="VALID", activation=activation,
                                            bias_init_value=-0.01,
                                            weight_decay=weight_decay)
@@ -62,7 +61,7 @@ def upsample_crop_concat(to_upsample, input_to_crop, size=(2, 2), weight_decay=N
         name (str): name of the concat operation (default: None)
 
     Returns:
-        output (4-D Tensor): (N, 2*H, 2*W, C + C2)
+        output (4-D Tensor): (N, size[0]*H, size[1]*W, 2*C2)
     """
     H, W, _ = to_upsample.get_shape().as_list()[1:]
     _, _, target_C = input_to_crop.get_shape().as_list()[1:]
@@ -117,24 +116,17 @@ def build_input_branch(input, feature_base_count, pool_count, name="", weight_de
                 # Add first level
                 conv, pool = conv_conv_pool(input, [feature_count, feature_count],
                                             name="conv_pool_{}".format(res_level_index), weight_decay=weight_decay)
-                # conv, pool = conv_conv_pool(input, [feature_count], training,
-                #                             name="conv_pool_{}".format(res_level_index), weight_decay=weight_decay)
             elif res_level_index < res_levels - 1:
                 # Add all other levels (except the last one)
                 level_input = levels[-1][1]  # Select the previous pool
                 conv, pool = conv_conv_pool(level_input, [feature_count, feature_count],
                                             name="conv_pool_{}".format(res_level_index), weight_decay=weight_decay)
-                # conv, pool = conv_conv_pool(level_input, [feature_count], training,
-                #                             name="conv_pool_{}".format(res_level_index), weight_decay=weight_decay)
             elif res_level_index == res_levels - 1:
                 # Add last level
                 level_input = levels[-1][1]  # Select the previous pool
                 conv, pool = conv_conv_pool(level_input, [feature_count, feature_count],
                                             name="conv_pool_{}".format(res_level_index), pool=False,
                                             weight_decay=weight_decay)
-                # conv, pool = conv_conv_pool(level_input, [feature_count], training,
-                #                             name="conv_pool_{}".format(res_level_index), pool=False,
-                #                             weight_decay=weight_decay)
             else:
                 print("WARNING: Should be impossible to get here!")
                 conv = pool = None
@@ -173,16 +165,13 @@ def build_common_part(branch_a_levels, branch_b_levels, feature_base_count,
             concat_a_b_conv, _ = conv_conv_pool(concat_a_b, [feature_count, feature_count],
                                                 name="concat_a_b_conv{}".format(level_index), pool=False,
                                                 weight_decay=weight_decay)
-            # concat_a_b_conv, _ = conv_conv_pool(concat_a_b, [feature_count], training,
-            #                                     name="concat_a_b_conv{}".format(level_index), pool=False,
-            #                                     weight_decay=weight_decay)
             print_debug("\t\tconcat_a_b_conv: {}".format(concat_a_b_conv))
             levels.append(concat_a_b_conv)
 
     return levels
 
 
-def build_output_branches(input_levels, feature_base_count, name="", weight_decay=None):
+def build_output_branch(input_levels, feature_base_count, name="", weight_decay=None):
     with tf.variable_scope(name):
         print_debug(name)
         res_levels = len(input_levels)
@@ -202,11 +191,8 @@ def build_output_branches(input_levels, feature_base_count, name="", weight_deca
                 final_conv, _ = conv_conv_pool(up, [feature_count, feature_count],
                                                name="final_conv_{}".format(level_index), pool=False,
                                                weight_decay=weight_decay)
-                # final_conv, _ = conv_conv_pool(up, [feature_count], training,
-                #                                name="final_conv_{}".format(level_index), pool=False,
-                #                                weight_decay=weight_decay)
                 print_debug("\t\tfinal_conv: {}".format(final_conv))
-                output_levels.insert(0, final_conv)  # Insert at the end because we are iterating in reverse order here.
+                output_levels.insert(0, final_conv)  # Insert at the beginning because we are iterating in reverse order
                 prev_level_output = final_conv
 
     return output_levels
@@ -288,12 +274,12 @@ def build_double_unet(input_image, input_poly_map,
     # Build the splitting part of the network, each level (except the last one) finishing with two branches: one for
     # displacement map prediction and the other for segmentation prediction. Each branch is like the upsampling part of
     # A U-Net
-    disp_levels = build_output_branches(common_part_levels,
+    disp_levels = build_output_branch(common_part_levels,
                                         common_feature_base_count,
                                         name="branch_disp",
                                         weight_decay=weight_decay)
     if add_seg_output:
-        seg_levels = build_output_branches(common_part_levels,
+        seg_levels = build_output_branch(common_part_levels,
                                            common_feature_base_count,
                                            name="branch_seg",
                                            weight_decay=weight_decay)
