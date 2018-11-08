@@ -16,6 +16,7 @@ DS_FAC_LIST = [
     2,
     1,
 ]
+# CHANGE: runs names to your own run names
 RUN_NAME_LIST = [
     "ds_fac_8_no_inria",
     "ds_fac_4_no_inria",
@@ -26,7 +27,6 @@ assert len(DS_FAC_LIST) == len(RUN_NAME_LIST), "DS_FAC_LIST and RUN_NAME_LIST sh
 # Both list should match and be in descending order of downsampling factor.
 
 OUTPUT_DIR = config_test.OUTPUT_DIR + ".align" + ".ds_fac_8_no_inria.ds_fac_4_no_inria.ds_fac_2_no_inria.ds_fac_1_no_inria"
-# OUTPUT_DIR = config_test.OUTPUT_DIR + ".align" + ".ds_fac_4_disp_max_16_quicksilver"
 
 # --- --- #
 
