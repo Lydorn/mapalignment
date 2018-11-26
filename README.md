@@ -1,4 +1,4 @@
-# Aligning Cadaster Maps with Remote Sensing Images
+# Aligning and Updating Cadaster Maps with Remote Sensing Images
 
 <p align="center">
     <img src="projects/mapalign/mapalign_multires/com/inference_anim/render/mapalignment_anim.gif" width="250" height="250" />
