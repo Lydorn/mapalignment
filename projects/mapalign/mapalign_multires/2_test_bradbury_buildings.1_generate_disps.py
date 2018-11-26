@@ -17,6 +17,8 @@ import read
 
 
 def generate_disp_maps(dataset_raw_dir, image_info, disp_map_params, thresholds, output_dir):
+    print("Generating {} displacement maps for {} {}...".format(disp_map_params["disp_map_count"], image_info["city"], image_info["number"]))
+
     disp_map_filename_format = "{}.disp_{:02d}.disp_map.npy"
     accuracies_filename_format = "{}.disp_{:02d}.accuracy.npy"
 

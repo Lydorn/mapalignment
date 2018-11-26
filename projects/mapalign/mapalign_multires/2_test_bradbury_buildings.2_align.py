@@ -18,16 +18,15 @@ DS_FAC_LIST = [
     1,
 ]
 RUN_NAME_LIST = [
-    "ds_fac_8_small",
-    "ds_fac_4_small",
-    "ds_fac_2_small",
-    "ds_fac_1_small",
+    "ds_fac_8",
+    "ds_fac_4",
+    "ds_fac_2",
+    "ds_fac_1",
 ]
 assert len(DS_FAC_LIST) == len(RUN_NAME_LIST), "DS_FAC_LIST and RUN_NAME_LIST should have the same length (and match)"
 # Both list should match and be in descending order of downsampling factor.
 
-OUTPUT_DIR = config_test.OUTPUT_DIR + ".align" + ".ds_fac_8_small.ds_fac_4_small.ds_fac_2_small.ds_fac_1_small"
-# OUTPUT_DIR = config_test.OUTPUT_DIR + ".align" + ".ds_fac_4_disp_max_16_quicksilver"
+OUTPUT_DIR = config_test.OUTPUT_DIR + ".align" + ".ds_fac_8.ds_fac_4.ds_fac_2.ds_fac_1"
 
 # --- --- #
 

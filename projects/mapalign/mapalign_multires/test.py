@@ -7,7 +7,6 @@ sys.path.append("../utils")
 import visualization
 
 import multires_pipeline
-import polygonize_buildings
 
 sys.path.append("../evaluate_funcs")
 import evaluate_utils
