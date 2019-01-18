@@ -5,18 +5,13 @@ import tensorflow as tf
 import numpy as np
 
 import model_utils
-# import model_utils_concat_interm_outputs
 import loss_utils
-
-sys.path.append("../evaluate_funcs")  # Evaluation functions
-import evaluate_utils
 
 sys.path.append("../utils")  # Mapalign utils
 import visualization
 
 sys.path.append("../../utils")  # All project utils
 import python_utils
-import polygonization_utils
 import tf_utils
 import image_utils
 import print_utils
