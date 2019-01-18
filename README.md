@@ -29,6 +29,7 @@ The code uses a few Python libraries such as Tensorflow, etc.
 The docker image
 [lydorn/anaconda-tensorflow-geo](docker/lydorn/anaconda-tensorflow-geo) has all the needed dependencies.
 See the instructions in the [docker](docker) folder to install docker and build that image.
+One the Docker image is built on your system, you can launch one container to execute all the code from this repository.
 
 
 ### Quickstart
@@ -43,8 +44,8 @@ extract and place the runs folder in the [mapalign_multires](projects/mapalign/m
 so that the folder structure is ```projects/mapalign/mapalign_multires/runs.igarss2019```.
 
 #### 2 - Execute script
-Execute the ```main.py``` script, specifying the path to your GeoTIFF image.
-Use ```python main.py -h``` for available options, the most relevant ones are ```--filepath``` and ```--batch_size```.
+Execute the [projects/mapalign/mapalign_multires/main.py](projects/mapalign/mapalign_multires/main.py) script: ```python main.py```.
+Use ```python main.py -h``` for available options. The most relevant ones are ```--filepath``` to change the GeoTIFF image used and ```--batch_size``` which you can adapt depending on the available memory.
 The script will first download the OSM annotation from the internet, align them with the specified networks and save the aligned annotations.
 
 
