@@ -7,18 +7,21 @@ import test
 
 sys.path.append("../../utils")
 import math_utils
+import run_utils
+import python_utils
 
 sys.path.append("../../../data/bradbury_buildings_roads_height_dataset")
 import read
 
 # --- Params --- #
 
+CONFIG_NAME = "config"
+TEST_CONFIG_NAME = "config.test.bradbury_buildings"
+
 # --- --- #
 
 
 def generate_disp_maps(dataset_raw_dir, image_info, disp_map_params, thresholds, output_dir):
-    print("Generating {} displacement maps for {} {}...".format(disp_map_params["disp_map_count"], image_info["city"], image_info["number"]))
-
     disp_map_filename_format = "{}.disp_{:02d}.disp_map.npy"
     accuracies_filename_format = "{}.disp_{:02d}.accuracy.npy"
 
@@ -46,11 +49,31 @@ def generate_disp_maps(dataset_raw_dir, image_info, disp_map_params, thresholds,
 
 
 def main():
-    if not os.path.exists(config_test.DISP_MAPS_DIR):
-        os.makedirs(config_test.DISP_MAPS_DIR)
+    # load config file
+    config = run_utils.load_config(CONFIG_NAME)
+    config_test = run_utils.load_config(TEST_CONFIG_NAME)
 
-    for image_info in config_test.IMAGES:
-        generate_disp_maps(config_test.DATASET_RAW_DIR, image_info, config_test.DISP_MAP_PARAMS, config_test.THRESHOLDS, config_test.DISP_MAPS_DIR)
+    # Find data_dir
+    data_dir = python_utils.choose_first_existing_path(config["data_dir_candidates"])
+    if data_dir is None:
+        print("ERROR: Data directory not found!")
+        exit()
+    else:
+        print("Using data from {}".format(data_dir))
+
+    dataset_raw_dirpath = os.path.join(data_dir, config_test["dataset_raw_partial_dirpath"])
+
+    if not os.path.exists(config_test["disp_maps_dir"]):
+        os.makedirs(config_test["disp_maps_dir"])
+
+    for images_info in config_test["images_info_list"]:
+        for number in images_info["numbers"]:
+            image_info = {
+                "city": images_info["city"],
+                "number": number,
+            }
+            generate_disp_maps(dataset_raw_dirpath, image_info, config_test["disp_map_params"],
+                               config_test["thresholds"], config_test["disp_maps_dir"])
 
 
 if __name__ == '__main__':

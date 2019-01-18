@@ -3,7 +3,6 @@ import skimage.transform
 import skimage.io
 import numpy as np
 
-import config
 import model
 
 sys.path.append("../../utils")
@@ -18,23 +17,29 @@ def rescale_data(image, polygons, scale):
     return downsampled_image, downsampled_polygons
 
 
-def downsample_data(image, metadata, polygons, factor):
-    corrected_factor = factor * config.REFERENCE_PIXEL_SIZE / metadata["pixelsize"]
+def downsample_data(image, metadata, polygons, factor, reference_pixel_size):
+    corrected_factor = factor * reference_pixel_size / metadata["pixelsize"]
     scale = 1 / corrected_factor
     downsampled_image, downsampled_polygons = rescale_data(image, polygons, scale)
     return downsampled_image, downsampled_polygons
 
 
-def upsample_data(image, metadata, polygons, factor):
+def upsample_data(image, metadata, polygons, factor, reference_pixel_size):
     # TODO: test with metadata["pixelsize"] != config.REFERENCE_PIXEL_SIZE
-    corrected_factor = factor * config.REFERENCE_PIXEL_SIZE / metadata["pixelsize"]
+    corrected_factor = factor * reference_pixel_size / metadata["pixelsize"]
     upsampled_image, upsampled_polygons = rescale_data(image, polygons, corrected_factor)
     return upsampled_image, upsampled_polygons
 
 
-def inference(ori_image, ori_metadata, ori_disp_polygons, model_disp_max_abs_value, batch_size, scale_factor, run_name):
+def inference(runs_dirpath, ori_image, ori_metadata, ori_disp_polygons, model_disp_max_abs_value, batch_size, scale_factor, run_name):
+    # Setup run dir and load config file
+    run_dir = run_utils.setup_run_dir(runs_dirpath, run_name)
+    _, checkpoints_dir = run_utils.setup_run_subdirs(run_dir)
+
+    config = run_utils.load_config(config_dirpath=run_dir)
+
     # Downsample
-    image, disp_polygons = downsample_data(ori_image, ori_metadata, ori_disp_polygons, scale_factor)
+    image, disp_polygons = downsample_data(ori_image, ori_metadata, ori_disp_polygons, scale_factor, config["reference_pixel_size"])
     spatial_shape = image.shape[:2]
 
     # Draw displaced polygon map
@@ -44,27 +49,39 @@ def inference(ori_image, ori_metadata, ori_disp_polygons, model_disp_max_abs_val
                                                       vertices=True)
 
     # Compute output_res
-    output_res = model.MapAlignModel.get_output_res(config.INPUT_RES, config.POOL_COUNT)
-    print("output_res: {}".format(output_res))
+    output_res = model.MapAlignModel.get_output_res(config["input_res"], config["pool_count"])
+    # print("output_res: {}".format(output_res))
 
-    map_align_model = model.MapAlignModel(config.MODEL_NAME, config.INPUT_RES, config.IMAGE_INPUT_CHANNELS,
-                                          config.IMAGE_DYNAMIC_RANGE, config.DISP_MAP_DYNAMIC_RANGE_FAC, config.POLY_MAP_INPUT_CHANNELS,
-                                          config.IMAGE_FEATURE_BASE_COUNT, config.POLY_MAP_FEATURE_BASE_COUNT,
-                                          config.COMMON_FEATURE_BASE_COUNT, config.POOL_COUNT,
-                                          output_res, config.DISP_OUTPUT_CHANNELS, model_disp_max_abs_value,
-                                          config.ADD_SEG_OUTPUT,
-                                          config.SEG_OUTPUT_CHANNELS,
-                                          batch_size, config.LEARNING_RATE_PARAMS,
-                                          config.LEVEL_LOSS_COEFS_PARAMS,
-                                          config.DISP_LOSS_COEF, config.SEG_LOSS_COEF, config.LAPLACIAN_PENALTY_COEF,
-                                          config.WEIGHT_DECAY)
+    map_align_model = model.MapAlignModel(config["model_name"], config["input_res"],
 
-    run_dir = run_utils.setup_run_dir(config.RUNS_DIR, run_name)
-    _, checkpoints_dir = run_utils.setup_run_subdirs(run_dir, config.LOGS_DIRNAME, config.CHECKPOINTS_DIRNAME)
+                                          config["add_image_input"], config["image_channel_count"],
+                                          config["image_feature_base_count"],
+
+                                          config["add_poly_map_input"], config["poly_map_channel_count"],
+                                          config["poly_map_feature_base_count"],
+
+                                          config["common_feature_base_count"], config["pool_count"],
+
+                                          config["add_disp_output"], config["disp_channel_count"],
+
+                                          config["add_seg_output"], config["seg_channel_count"],
+
+                                          output_res,
+                                          batch_size,
+
+                                          config["loss_params"],
+                                          config["level_loss_coefs_params"],
+
+                                          config["learning_rate_params"],
+                                          config["weight_decay"],
+
+                                          config["image_dynamic_range"], config["disp_map_dynamic_range_fac"],
+                                          model_disp_max_abs_value)
+
     pred_field_map, segmentation_image = map_align_model.inference(image, disp_polygon_map, checkpoints_dir)
 
-    # --- Align disp_polygon according to pred_field_map --- #
-    print("# --- Align disp_polygon according to pred_field_map --- #")
+    # --- align disp_polygon according to pred_field_map --- #
+    # print("# --- Align disp_polygon according to pred_field_map --- #")
     aligned_disp_polygons = disp_polygons
     # First remove polygons that are not fully inside the inner_image
     padding = (spatial_shape[0] - pred_field_map.shape[0]) // 2
@@ -82,13 +99,13 @@ def inference(ori_image, ori_metadata, ori_disp_polygons, model_disp_max_abs_val
     final_segmentation_image[padding:-padding, padding:-padding, :] = segmentation_image
 
     # --- Upsample outputs --- #
-    print("# --- Upsample outputs --- #")
-    final_segmentation_image, aligned_disp_polygons = upsample_data(final_segmentation_image, ori_metadata, aligned_disp_polygons, scale_factor)
+    # print("# --- Upsample outputs --- #")
+    final_segmentation_image, aligned_disp_polygons = upsample_data(final_segmentation_image, ori_metadata, aligned_disp_polygons, scale_factor, config["reference_pixel_size"])
 
     return aligned_disp_polygons, final_segmentation_image
 
 
-def multires_inference(ori_image, ori_metadata, ori_disp_polygons, model_disp_max_abs_value, batch_size, ds_fac_list, run_name_list):
+def multires_inference(runs_dirpath, ori_image, ori_metadata, ori_disp_polygons, model_disp_max_abs_value, batch_size, ds_fac_list, run_name_list):
     """
     Returns the last segmentation image that was computed (from the finest resolution)
 
@@ -105,7 +122,7 @@ def multires_inference(ori_image, ori_metadata, ori_disp_polygons, model_disp_ma
     # Launch the resolution chain pipeline:
     for index, (ds_fac, run_name) in enumerate(zip(ds_fac_list, run_name_list)):
         print("# --- downsampling_factor: {} --- #".format(ds_fac))
-        aligned_disp_polygons, segmentation_image = inference(ori_image, ori_metadata, aligned_disp_polygons, model_disp_max_abs_value, batch_size, ds_fac, run_name)
+        aligned_disp_polygons, segmentation_image = inference(runs_dirpath, ori_image, ori_metadata, aligned_disp_polygons, model_disp_max_abs_value, batch_size, ds_fac, run_name)
 
     return aligned_disp_polygons, segmentation_image
 

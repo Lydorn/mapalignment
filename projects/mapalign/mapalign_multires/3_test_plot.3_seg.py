@@ -13,14 +13,19 @@ IOUS_FILENAME_EXTENSION = ".iou.npy"
 SOURCE_PARAMS_LIST = [
     {
         "name": "Full method",
-        "path": "test/bradbury_buildings.seg.ds_fac_1_input_poly_coef_1",
+        "path": "test/bradbury_buildings.seg.ds_fac_1",
         "plot_color": "blue"
     },
     {
-        "name": "Full method ds_fac=1 input_poly_coef 0.1",
-        "path": "test/bradbury_buildings.seg.ds_fac_1",
-        "plot_color": "darkorchid"
+        "name": "No disp loss",
+        "path": "test/bradbury_buildings.seg.ds_fac_1_no_disp_loss",
+        "plot_color": "orange"
     },
+    # {
+    #     "name": "Full method ds_fac=1 input_poly_coef 0.1",
+    #     "path": "test/bradbury_buildings.seg.ds_fac_1",
+    #     "plot_color": "darkorchid"
+    # },
     # {
     #     "name": "No intermediary losses",
     #     "path": "test/bradbury_buildings.seg.ds_fac_1_no_interm_loss",
@@ -67,14 +72,14 @@ def main():
 
     for source_params in SOURCE_PARAMS_LIST:
         thresholds_ious_filepath_list = python_utils.get_filepaths(source_params["path"], IOUS_FILENAME_EXTENSION)
-        print(thresholds_ious_filepath_list)
+        # print(thresholds_ious_filepath_list)
 
         thresholds_ious_list = []
         for thresholds_ious_filepath in thresholds_ious_filepath_list:
             thresholds_ious = np.load(thresholds_ious_filepath).item()
             thresholds_ious_list.append(thresholds_ious)
 
-        print(thresholds_ious_list)
+        # print(thresholds_ious_list)
 
         # Plot main, min and max curves
         ious_list = []
@@ -82,6 +87,12 @@ def main():
             ious_list.append(thresholds_ious["ious"])
         ious_table = np.stack(ious_list, axis=0)
         ious_average = np.mean(ious_table, axis=0)
+        ious_average_area = np.trapz(ious_average, thresholds_ious_list[0]["thresholds"])
+        ious_average_max = np.max(ious_average)
+        ious_average_midpoint = ious_average[ious_average.shape[0]//2]
+        print("ious_average_area = {}".format(ious_average_area))
+        print("ious_average_max = {}".format(ious_average_max))
+        print("ious_average_midpoint = {}".format(ious_average_midpoint))
         plt.plot(thresholds_ious_list[0]["thresholds"], ious_average, color=source_params["plot_color"], alpha=ALPHA_MAIN, label=source_params["name"])
 
         # Plot all curves:

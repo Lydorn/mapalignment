@@ -1,8 +1,10 @@
+import os
 import sys
 import numpy as np
 import cv2
 
-sys.path.append("../../utils")
+current_filepath = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(current_filepath, "../../utils"))
 import python_utils
 import polygon_utils
 
@@ -298,14 +300,14 @@ def plot_batch_seg(figure_name, image_batch, seg_batch):
     plot_seg(figure_name, image_batch[index], seg_batch[index])
 
 
-def save_plot_image_polygons(filepath, ori_image, ori_gt_polygons, disp_polygons, aligned_disp_polygons):
+def save_plot_image_polygons(filepath, ori_image, ori_gt_polygons, disp_polygons, aligned_disp_polygons, line_width=1):
     spatial_shape = ori_image.shape[:2]
     ori_gt_polygons_map = polygon_utils.draw_polygon_map(ori_gt_polygons, spatial_shape, fill=False, edges=True,
-                                                         vertices=False, line_width=1)
+                                                         vertices=False, line_width=line_width)
     disp_polygons_map = polygon_utils.draw_polygon_map(disp_polygons, spatial_shape, fill=False, edges=True,
-                                                       vertices=False, line_width=1)
+                                                       vertices=False, line_width=line_width)
     aligned_disp_polygons_map = polygon_utils.draw_polygon_map(aligned_disp_polygons, spatial_shape, fill=False,
-                                                               edges=True, vertices=False, line_width=1)
+                                                               edges=True, vertices=False, line_width=line_width)
 
     output_image = ori_image[:, :, :3]  # Keep first 3 channels
     output_image = output_image.astype(np.float64)

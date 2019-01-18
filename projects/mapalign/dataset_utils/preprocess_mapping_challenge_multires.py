@@ -1,7 +1,6 @@
 import sys
 import os
 import json
-import math
 
 import skimage.transform
 import skimage.draw

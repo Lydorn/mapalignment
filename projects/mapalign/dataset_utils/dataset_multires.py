@@ -1,7 +1,6 @@
 import sys
 import os
 import math
-import json
 
 import tensorflow as tf
 

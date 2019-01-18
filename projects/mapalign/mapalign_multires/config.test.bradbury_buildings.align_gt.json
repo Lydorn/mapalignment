@@ -1,0 +1,66 @@
+{
+  // change to the path of you own data folder:
+  "data_dir_candidates": [
+    "/local/shared/epitome-polygon-deep-learning/data",
+    // try local node first
+    "/home/nigirard/epitome-polygon-deep-learning/data",
+    "/workspace/data"
+    // try inside docker image
+  ],
+  // change to the path of you own dataset:
+  "dataset_raw_partial_dirpath": "bradbury_buildings_roads_height_dataset/raw",
+  // This path will be joined with the automatically-selected path from data_dir_candidates
+
+  // change to your own way of identifying your images. for example in inria dataset, images have a city name plus a number.
+  // the load_gt_data() function of the read.py script takes those 2 parameters as input to identify the image to load.
+  "images_info_list": [
+    {
+      "city": "Arlington",
+      "numbers":  [1, 2, 3]
+    },
+    {
+      "city": "Atlanta",
+      "numbers":  [1, 2, 3]
+    },
+//    {
+//      "city": "Austin",
+//      "numbers":  [1, 2, 3]  // Exclude Austin because image is too big for cluster. Have to use 64GB RAM laptop for this one.
+//    }
+//  ,
+    {
+      "city": "DC",
+      "numbers":  [1, 2]
+    },
+    {
+      "city": "NewHaven",
+      "numbers":  [1, 2]
+    },
+    {
+      "city": "NewYork",
+      "numbers":  [1, 2, 3]
+    },
+    {
+      "city": "Norfolk",
+      "numbers":  [1, 2, 3]
+    },
+    {
+      "city": "SanFrancisco",
+      "numbers":  [1, 2, 3]
+    },
+    {
+      "city": "Seekonk",
+      "numbers":  [1, 2, 3]
+    }
+  ],
+
+  // model
+  "batch_size": 12,
+  "model_disp_max_abs_value": 4,
+
+  "output_shapefiles": false,
+
+  // change to your own output directory for the test results:
+  "align_dir": "test.igarss2019/bradbury_buildings.align_gt"
+}
+
+

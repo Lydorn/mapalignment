@@ -30,13 +30,23 @@ The docker image
 [lydorn/anaconda-tensorflow-geo](docker/lydorn/anaconda-tensorflow-geo) has all the needed dependencies.
 See the instructions in the [docker](docker) folder to install docker and build that image.
 
-### Download pre-trained networks
 
-4 pe-trained networks are available, one for each downsampling factor.\
+### Quickstart
+
+In order to align the OSM building annotations of your   own GeoTIFF image using our pre-trained models, follow these instructions:
+
+#### 1 - Download pre-trained networks
+4 pe-trained networks are available, one for each downsampling factor 8, 4, 2 and 1.\
 You can either: Execute the download script [download_pretrained.py](projects/mapalign/mapalign_multires/download_pretrained.py)\
-Or: manually download the zipfile at https://www-sop.inria.fr/members/Nicolas.Girard/downloads/mapalignment/runs.zip,
-extract and place the runs folder in the [projects/mapalign/mapalign_multires](projects/mapalign/mapalign_multires) folder
-so that the folder structure is [projects/mapalign/mapalign_multires/runs](projects/mapalign/mapalign_multires/runs)
+Or: manually download the zipfile at https://www-sop.inria.fr/members/Nicolas.Girard/downloads/mapalignment/runs.igarss2019.zip,
+extract and place the runs folder in the [mapalign_multires](projects/mapalign/mapalign_multires) folder
+so that the folder structure is ```projects/mapalign/mapalign_multires/runs.igarss2019```.
+
+#### 2 - Execute script
+Execute the ```main.py``` script, specifying the path to your GeoTIFF image.
+Use ```python main.py -h``` for available options, the most relevant ones are ```--filepath``` and ```--batch_size```.
+The script will first download the OSM annotation from the internet, align them with the specified networks and save the aligned annotations.
+
 
 ### Train your own models
 

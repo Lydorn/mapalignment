@@ -1,4 +1,9 @@
+import sys
+
 import numpy as np
+
+sys.path.append("../../utils")
+import polygon_utils
 
 
 def compute_batch_polygon_distances(gt_polygons_batch, aligned_disp_polygons_batch):
@@ -25,14 +30,13 @@ def compute_threshold_accuracies(gt_vertices_batch, pred_vertices_batch, thresho
                 if nan_index:
                     gt_polygon = gt_polygon[:nan_index, :]
                     pred_polygon = pred_polygon[:nan_index, :]
-                    stripped_gt_polygons_list.append(gt_polygon)
-                    stripped_pred_polygons_list.append(pred_polygon)
                 else:
                     # Empty polygon, break the for loop
                     break
-            else:
-                stripped_gt_polygons_list.append(gt_polygon)
-                stripped_pred_polygons_list.append(pred_polygon)
+            gt_polygon = polygon_utils.strip_redundant_vertex(gt_polygon, epsilon=1e-3)
+            pred_polygon = polygon_utils.strip_redundant_vertex(pred_polygon, epsilon=1e-3)
+            stripped_gt_polygons_list.append(gt_polygon)
+            stripped_pred_polygons_list.append(pred_polygon)
 
     if len(stripped_gt_polygons_list) == 0 or len(stripped_pred_polygons_list) == 0:
         return []
@@ -41,7 +45,6 @@ def compute_threshold_accuracies(gt_vertices_batch, pred_vertices_batch, thresho
     stripped_pred_polygons = np.concatenate(stripped_pred_polygons_list)
 
     distances = np.sqrt(np.sum(np.square(stripped_gt_polygons - stripped_pred_polygons), axis=-1))
-    # print(distances)
 
     # Compute thresholds count
     threshold_accuracies = []

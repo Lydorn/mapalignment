@@ -42,6 +42,7 @@ RUN pip install -U --no-cache-dir scikit-image
 RUN pip install -U --no-cache-dir cython
 RUN pip install --no-cache-dir "git+https://github.com/philferriere/cocoapi.git#egg=pycocotools&subdirectory=PythonAPI"
 
+RUN conda install -c conda-forge jsmin
 
 #RUN conda install -c anaconda joblib -y
 

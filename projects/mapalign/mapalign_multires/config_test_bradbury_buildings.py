@@ -53,5 +53,5 @@ THRESHOLDS = np.arange(0, 16.25, 0.25)
 
 OUTPUT_SHAPEFILES = False  # Bradbury images are not geo-localized
 
-OUTPUT_DIR = "test/bradbury_buildings"
+OUTPUT_DIR = "test.accv2018/bradbury_buildings"
 DISP_MAPS_DIR = OUTPUT_DIR + ".disp_maps"

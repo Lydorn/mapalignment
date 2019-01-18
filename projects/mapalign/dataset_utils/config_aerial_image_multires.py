@@ -1,35 +1,32 @@
 import os
 
-# A list of possible root dir depending on where the code is:
-ROOT_DIR_LIST = [
+
+def choose_first_existing_dir(dir_list):
+    for dir in dir_list:
+        if os.path.exists(dir):
+            return dir
+    return None
+
+ROOT_DIR = choose_first_existing_dir([
     "/local/shared/epitome-polygon-deep-learning",  # Inria cluster node nefgpu23
     "/home/nigirard/epitome-polygon-deep-learning",  # Landsat
     "/workspace",  # Docker (mainly when using Deepsat or personal computer)
-]
-ROOT_DIR_INDEX = 0
-while not os.path.exists(ROOT_DIR_LIST[ROOT_DIR_INDEX]):
-    ROOT_DIR_INDEX += 1
-ROOT_DIR = ROOT_DIR_LIST[ROOT_DIR_INDEX]
+])
 print("ROOT_DIR: {}".format(ROOT_DIR))
 
 # Dataset offline pre-processing
-DATASET_DIR = os.path.join(ROOT_DIR, "data/AerialImageDataset")
-IMAGES_DIR_LIST = [
-    os.path.join(DATASET_DIR, "raw/train/images"),
-    os.path.join(DATASET_DIR, "raw/test/images")
-]
-IMAGE_EXTENSION = "tif"
-GT_POLYGONS_DIR_NAME = "gt_polygons"
-GT_POLYGONS_EXTENSION = "npy"
+DATASET_DIRPATH = os.path.join(ROOT_DIR, "data/AerialImageDataset")
+DATASET_RAW_DIRPATH = os.path.join(DATASET_DIRPATH, "raw")
+DATASET_OVERWRITE_POLYGON_DIR_NAME = None  # Can be "aligned_noisy_gt_polygons_1"
 
 TILE_RES = 220  # The maximum patch size will be 220. Adjusted for rotation will be ceil(220*sqrt(2)) = 312.
 TILE_STRIDE = 100  # The maximum inner path res will be 100
 
 # If True, generates patches with increased size to account for cropping during the online processing step
-DATA_AUG_ROT = True   # data_aug_rot only applies to train
+DATA_AUG_ROT = True  # data_aug_rot only applies to train
 
-TFRECORDS_DIR = os.path.join(DATASET_DIR, "tfrecords.mapalign.multires")
-TFRECORD_FILENAME_FORMAT = "{}.ds_fac_{:02d}.{{:06d}}.tfrecord"
+TFRECORDS_DIR = os.path.join(DATASET_DIRPATH, "tfrecords.mapalign.multires.aligned_noisy_1")
+TFRECORD_FILEPATH_FORMAT = "{}/{}/ds_fac_{:02d}.{{:06d}}.tfrecord"  # Fold, image name, ds_fac, shard number
 
 DISP_MAP_COUNT = 1  # Number of displacement applied to polygons to generate the displaced gt map (1 minimum, more for dataset augmentation)
 DISP_MODES = 30  # Number of Gaussians mixed up to make the displacement map (Default: 20)
@@ -42,27 +39,60 @@ DISP_MAX_ABS_VALUE = 4  # In pixels in the downsampled resolutions.
 DOWNSAMPLING_FACTORS = [1, 2, 4, 8, 16]
 # For 16, 5000x5000px images will be rescaled to 312x312px. Which corresponds to the rotation-adjusted tile_res
 
-# Choose min downsampling factor for each city (depends on the quality of alignement)
-CITY_MIN_DOWNSAMPLING_FACTOR = {
-    "bloomington": 4,
-    "bellingham": 4,
-    "innsbruck": 2,
-    "sfo": 4,
-    "tyrol-e": 4,
-    "austin": 1,
-    "chicago": 1,
-    "kitsap": 4,
-    "tyrol-w": 2,
-    "vienna": 2,
-}
-
-# Split data into TRAIN, VAL and TEST
-TRAIN_COUNT = 288  # 360*  0.8 = 288
-VAL_COUNT = 72  # 360 * 0.2 = 288
-TEST_COUNT = 0
-
-IMAGE_INDEX_START = 0
-IMAGE_INDEX_END = -1  # -1 Means process all images (other values are used for testing quickly)
+TRAIN_IMAGES = [
+    {
+        "city": "bloomington",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 4
+    },
+    {
+        "city": "bellingham",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 4
+    },
+    {
+        "city": "innsbruck",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 2
+    },
+    {
+        "city": "sfo",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 4
+    },
+    {
+        "city": "tyrol-e",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 4
+    },
+    {
+        "city": "austin",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 1
+    },
+    {
+        "city": "chicago",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 1
+    },
+    {
+        "city": "kitsap",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 4
+    },
+    {
+        "city": "tyrol-w",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 2
+    },
+    {
+        "city": "vienna",
+        "numbers": list(range(1, 37)),
+        "min_downsampling_factor": 1,  # Default: 2
+    },
+]
+VAL_IMAGES = []
+TEST_IMAGES = []
 
 # Split large tfrecord into several smaller tfrecords (shards)
 RECORDS_PER_SHARD = 100

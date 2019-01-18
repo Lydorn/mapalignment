@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 
 import model_utils
+# import model_utils_concat_interm_outputs
 import loss_utils
 
 sys.path.append("../evaluate_funcs")  # Evaluation functions
@@ -15,71 +16,121 @@ import visualization
 
 sys.path.append("../../utils")  # All project utils
 import python_utils
-import polygon_utils
+import polygonization_utils
 import tf_utils
 import image_utils
+import print_utils
 
 
 class MapAlignModel:
-    def __init__(self, model_name,
-                 input_res, image_input_channels, image_dynamic_range, disp_map_dynamic_range_fac, poly_map_input_channels,
-                 image_feature_base_count, poly_map_feature_base_count, common_feature_base_count, pool_count,
-                 output_res, disp_output_channels, disp_max_abs_value, add_seg_output, seg_output_channels,
-                 batch_size, learning_rate_params, level_loss_coefs_params,
-                 disp_loss_coef, seg_loss_coef, laplacian_penalty_coef,
-                 weight_decay):
+    def __init__(self, model_name, input_res,
+
+                 add_image_input, image_channel_count,
+                 image_feature_base_count,
+
+                 add_poly_map_input, poly_map_channel_count,
+                 poly_map_feature_base_count,
+
+                 common_feature_base_count, pool_count,
+
+                 add_disp_output, disp_channel_count,
+
+                 add_seg_output, seg_channel_count,
+
+                 output_res,
+                 batch_size,
+
+                 loss_params,
+                 level_loss_coefs_params,
+
+                 learning_rate_params,
+                 weight_decay,
+
+                 image_dynamic_range, disp_map_dynamic_range_fac,
+                 disp_max_abs_value):
         """
-        Methods that may need a re-write if changing this class's code:
+         Methods that may need a re-write if changing this class's code:
         - get_input_res
         - get_output_res
 
         :param model_name:
         :param input_res:
-        :param image_input_channels:
-        :param image_dynamic_range:
-        :param disp_map_dynamic_range_fac:
-        :param poly_map_input_channels:
+        :param add_image_input:
+        :param image_channel_count:
         :param image_feature_base_count:
+        :param add_poly_map_input:
+        :param poly_map_channel_count:
         :param poly_map_feature_base_count:
         :param common_feature_base_count:
         :param pool_count:
-        :param output_res:
-        :param disp_output_channels:
-        :param disp_max_abs_value:
+        :param add_disp_output:
+        :param disp_channel_count:
         :param add_seg_output:
-        :param seg_output_channels:
+        :param seg_channel_count:
+        :param output_res:
         :param batch_size:
-        :param learning_rate_params:
+        :param loss_params:
         :param level_loss_coefs_params:
-        :param disp_loss_coef:
-        :param seg_loss_coef:
-        :param laplacian_penalty_coef:
+        :param learning_rate_params:
         :param weight_decay:
+        :param image_dynamic_range:
+        :param disp_map_dynamic_range_fac:
+        :param disp_max_abs_value:
         """
+        assert type(model_name) == str, "model_name should be a string, not a {}".format(type(model_name))
+        assert type(input_res) == int, "input_res should be an int, not a {}".format(type(input_res))
+        assert type(add_image_input) == bool, "add_image_input should be a bool, not a {}".format(type(add_image_input))
+        assert type(image_channel_count) == int, "image_channel_count should be an int, not a {}".format(type(image_channel_count))
+        assert type(image_feature_base_count) == int, "image_feature_base_count should be an int, not a {}".format(type(image_feature_base_count))
+        assert type(add_poly_map_input) == bool, "add_poly_map_input should be a bool, not a {}".format(type(add_poly_map_input))
+        assert type(poly_map_channel_count) == int, "poly_map_channel_count should be an int, not a {}".format(type(poly_map_channel_count))
+        assert type(poly_map_feature_base_count) == int, "poly_map_feature_base_count should be an int, not a {}".format(type(poly_map_feature_base_count))
+        assert type(common_feature_base_count) == int, "common_feature_base_count should be an int, not a {}".format(type(common_feature_base_count))
+        assert type(pool_count) == int, "pool_count should be an int, not a {}".format(type(pool_count))
+        assert type(add_disp_output) == bool, "add_disp_output should be a bool, not a {}".format(type(add_disp_output))
+        assert type(disp_channel_count) == int, "disp_channel_count should be an int, not a {}".format(type(disp_channel_count))
+        assert type(add_seg_output) == bool, "add_seg_output should be a bool, not a {}".format(type(add_seg_output))
+        assert type(seg_channel_count) == int, "seg_channel_count should be an int, not a {}".format(type(seg_channel_count))
+        assert type(output_res) == int, "output_res should be an int, not a {}".format(type(output_res))
+        assert type(batch_size) == int, "batch_size should be an int, not a {}".format(type(batch_size))
+        assert type(loss_params) == dict, "loss_params should be a dict, not a {}".format(type(loss_params))
+        assert type(level_loss_coefs_params) == list, "level_loss_coefs_params should be a list, not a {}".format(type(level_loss_coefs_params))
+        assert type(learning_rate_params) == dict, "learning_rate_params should be a dict, not a {}".format(type(learning_rate_params))
+        assert type(weight_decay) == float, "weight_decay should be a float, not a {}".format(type(weight_decay))
+        assert type(image_dynamic_range) == list, "image_dynamic_range should be a string, not a {}".format(type(image_dynamic_range))
+        assert type(disp_map_dynamic_range_fac) == float, "disp_map_dynamic_range_fac should be a float, not a {}".format(type(disp_map_dynamic_range_fac))
+        assert type(disp_max_abs_value) == float or type(disp_max_abs_value) == int, "disp_max_abs_value should be a number, not a {}".format(type(disp_max_abs_value))
+
         # Re-init Tensorflow
         self.init_tf()
         # Init attributes from arguments
         self.model_name = model_name
-
         self.input_res = input_res
-        self.image_input_channels = image_input_channels
-        self.image_dynamic_range = image_dynamic_range
-        self.disp_map_dynamic_range_fac = disp_map_dynamic_range_fac
-        self.poly_map_input_channels = poly_map_input_channels
 
+        self.add_image_input = add_image_input
+        self.image_channel_count = image_channel_count
         self.image_feature_base_count = image_feature_base_count
+
+        self.add_poly_map_input = add_poly_map_input
+        self.poly_map_channel_count = poly_map_channel_count
         self.poly_map_feature_base_count = poly_map_feature_base_count
+
         self.common_feature_base_count = common_feature_base_count
         self.pool_count = pool_count
 
-        self.output_res = output_res
-        self.disp_output_channels = disp_output_channels
-        self.disp_max_abs_value = disp_max_abs_value
-        self.add_seg_output = add_seg_output
-        self.seg_output_channels = seg_output_channels
+        self.add_disp_output = add_disp_output
+        self.disp_channel_count = disp_channel_count
 
+        self.add_seg_output = add_seg_output
+        self.seg_channel_count = seg_channel_count
+
+        self.output_res = output_res
         self.batch_size = batch_size
         self.weight_decay = weight_decay
+
+        self.image_dynamic_range = image_dynamic_range
+        self.disp_map_dynamic_range_fac = disp_map_dynamic_range_fac
+        self.disp_max_abs_value = disp_max_abs_value
 
         # Create placeholders
         self.input_image, \
@@ -88,19 +139,88 @@ class MapAlignModel:
         self.gt_seg, \
         self.gt_polygons, \
         self.disp_polygons = self.create_placeholders()
-        # Create model
-        self.level_0_disp_pred, \
-        self.stacked_disp_preds, \
-        self.level_0_seg_pred, \
-        self.stacked_seg_pred_logits, \
-        self.keep_prob = model_utils.build_double_unet(self.input_image, self.input_disp_polygon_map,
-                                                       self.image_feature_base_count,
-                                                       self.poly_map_feature_base_count,
-                                                       self.common_feature_base_count, self.pool_count,
-                                                       self.disp_output_channels,
-                                                       add_seg_output=self.add_seg_output,
-                                                       seg_output_channels=self.seg_output_channels,
-                                                       weight_decay=self.weight_decay)
+
+        # --- Create model --- #
+        # # concat_interm_outputs:
+        # self.level_0_disp_pred, \
+        # self.stacked_disp_preds, \
+        # self.level_0_seg_pred, \
+        # self.stacked_seg_pred_logits, \
+        # self.keep_prob = model_utils_concat_interm_outputs.build_double_unet(self.input_image,
+        #                                                                      self.input_disp_polygon_map,
+        #                                                                      self.image_feature_base_count,
+        #                                                                      self.poly_map_feature_base_count,
+        #                                                                      self.common_feature_base_count,
+        #                                                                      self.pool_count,
+        #                                                                      self.disp_channel_count,
+        #                                                                      add_seg_output=self.add_seg_output,
+        #                                                                      seg_channel_count=self.seg_channel_count,
+        #                                                                      weight_decay=self.weight_decay)
+
+        # # Old way:
+        # self.level_0_disp_pred, \
+        # self.stacked_disp_preds, \
+        # self.level_0_seg_pred, \
+        # self.stacked_seg_pred_logits, \
+        # self.keep_prob = model_utils.build_double_unet(self.input_image, self.input_disp_polygon_map,
+        #                                                self.image_feature_base_count,
+        #                                                self.poly_map_feature_base_count,
+        #                                                self.common_feature_base_count, self.pool_count,
+        #                                                self.disp_channel_count,
+        #                                                add_seg_output=self.add_seg_output,
+        #                                                seg_channel_count=self.seg_channel_count,
+        #                                                weight_decay=self.weight_decay)
+
+        # New way:
+        input_branch_params_list = []
+        if self.add_image_input:
+            input_branch_params_list.append({
+                "tensor": self.input_image,
+                "name": "image",
+                "feature_base_count": self.image_feature_base_count,
+            })
+        if self.add_poly_map_input:
+            input_branch_params_list.append({
+                "tensor": self.input_disp_polygon_map,
+                "name": "poly_map",
+                "feature_base_count": self.poly_map_feature_base_count,
+            })
+        output_branch_params_list = []
+        if self.add_disp_output:
+            output_branch_params_list.append({
+                "feature_base_count": self.common_feature_base_count,
+                "channel_count": self.disp_channel_count,
+                "activation": tf.nn.tanh,
+                "name": "disp",
+            })
+        if self.add_seg_output:
+            output_branch_params_list.append({
+                "feature_base_count": self.common_feature_base_count,
+                "channel_count": self.seg_channel_count,
+                "activation": tf.identity,
+                "name": "seg",
+            })
+
+        outputs, self.keep_prob = model_utils.build_multibranch_unet(input_branch_params_list, self.pool_count,
+                                                                     self.common_feature_base_count,
+                                                                     output_branch_params_list,
+                                                                     weight_decay=self.weight_decay)
+        if self.add_disp_output:
+            index = 0
+            _, self.stacked_disp_preds, self.level_0_disp_pred = outputs[index]
+        else:
+            self.stacked_disp_preds = self.level_0_disp_pred = None
+        if self.add_seg_output:
+            index = self.add_disp_output  # 0 if there is no disp_output, 1 if there is
+            self.stacked_seg_pred_logits, _, self.level_0_seg_pred = outputs[index]
+            # # --- Add polygonization module --- #
+            # print_utils.print_info(" --- Add polygonization module: --- #")
+            # polygonization_utils.build_polygonization_module(self.level_0_seg_pred)
+            # print_utils.print_info(" --- --- #")
+        else:
+            self.stacked_seg_pred_logits = self.level_0_seg_pred = None
+
+        # --- --- #
 
         # Create training attributes
         self.global_step = self.create_global_step()
@@ -109,10 +229,10 @@ class MapAlignModel:
         self.level_loss_coefs = self.build_level_coefs(level_loss_coefs_params)
 
         # Build losses
-        self.total_loss = self.build_losses(disp_loss_coef, seg_loss_coef, laplacian_penalty_coef)
+        self.total_loss = self.build_losses(loss_params)
 
-        # Build evaluator
-        self.aligned_disp_polygons_batch, self.threshold_accuracies = self.build_evaluator()
+        # # Build evaluator
+        # self.aligned_disp_polygons_batch, self.threshold_accuracies = self.build_evaluator()
 
         # Create optimizer
         self.train_step = self.build_optimizer()
@@ -123,15 +243,15 @@ class MapAlignModel:
 
     def create_placeholders(self):
         input_image = tf.placeholder(tf.float32, [self.batch_size, self.input_res, self.input_res,
-                                                  self.image_input_channels])
+                                                  self.image_channel_count])
         input_disp_polygon_map = tf.placeholder(tf.float32, [self.batch_size, self.input_res,
                                                              self.input_res,
-                                                             self.poly_map_input_channels])
+                                                             self.poly_map_channel_count])
 
         gt_disp_field_map = tf.placeholder(tf.float32, [self.batch_size, self.output_res, self.output_res,
-                                                        self.disp_output_channels])
+                                                        self.disp_channel_count])
         gt_seg = tf.placeholder(tf.float32, [self.batch_size, self.input_res, self.input_res,
-                                             self.poly_map_input_channels])
+                                             self.poly_map_channel_count])
 
         gt_polygons = tf.placeholder(tf.float32, [self.batch_size, None, None, 2])
         disp_polygons = tf.placeholder(tf.float32, [self.batch_size, None, None, 2])
@@ -159,88 +279,93 @@ class MapAlignModel:
             level_loss_coefs = tf.stack(level_loss_coefs_list)
         return level_loss_coefs
 
-    def build_losses(self, disp_loss_coef, seg_loss_coef, laplacian_penalty_coef):
+    def build_losses(self, loss_params):
         with tf.name_scope('losses'):
-            # Displacement loss
-            displacement_error = loss_utils.displacement_error(self.gt_disp_field_map,
-                                                               self.stacked_disp_preds,
-                                                               self.level_loss_coefs,
-                                                               self.input_disp_polygon_map)
-            tf.summary.scalar('displacement_error', displacement_error)
-            weighted_displacement_error = disp_loss_coef * displacement_error
-            tf.summary.scalar('weighted_displacement_error', weighted_displacement_error)
-            tf.add_to_collection('losses', weighted_displacement_error)
+            if self.add_disp_output:
+                # Displacement loss
+                displacement_error = loss_utils.displacement_error(self.gt_disp_field_map,
+                                                                   self.stacked_disp_preds,
+                                                                   self.level_loss_coefs,
+                                                                   self.input_disp_polygon_map,
+                                                                   loss_params["disp"])
+                tf.summary.scalar('displacement_error', displacement_error)
+                weighted_displacement_error = loss_params["disp"]["coef"] * displacement_error
+                tf.summary.scalar('weighted_displacement_error', weighted_displacement_error)
+                tf.add_to_collection('losses', weighted_displacement_error)
 
-            # Segmentation loss
+                # Laplacian penalty
+                laplacian_penalty = loss_utils.laplacian_penalty(self.stacked_disp_preds,
+                                                                 self.level_loss_coefs)
+                tf.summary.scalar('laplacian_penalty', laplacian_penalty)
+                weighted_laplacian_penalty = loss_params["laplacian_penalty_coef"] * laplacian_penalty
+                tf.summary.scalar('weighted_laplacian_penalty', weighted_laplacian_penalty)
+                tf.add_to_collection('losses', weighted_laplacian_penalty)
+
             if self.add_seg_output:
+                # Segmentation loss
                 segmentation_error = loss_utils.segmentation_error(self.gt_seg,
                                                                    self.stacked_seg_pred_logits,
-                                                                   self.level_loss_coefs)
+                                                                   self.level_loss_coefs,
+                                                                   loss_params["seg"])
                 tf.summary.scalar('segmentation_error', segmentation_error)
-                weighted_segmentation_error = seg_loss_coef * segmentation_error
+                weighted_segmentation_error = loss_params["seg"]["coef"] * segmentation_error
                 tf.summary.scalar('weighted_segmentation_error', weighted_segmentation_error)
                 tf.add_to_collection('losses', weighted_segmentation_error)
-
-            # Laplacian penalty
-            laplacian_penalty = loss_utils.laplacian_penalty(self.stacked_disp_preds,
-                                                             self.level_loss_coefs)
-            tf.summary.scalar('laplacian_penalty', laplacian_penalty)
-            weighted_laplacian_penalty = laplacian_penalty_coef * laplacian_penalty
-            tf.summary.scalar('weighted_laplacian_penalty', weighted_laplacian_penalty)
-            tf.add_to_collection('losses', weighted_laplacian_penalty)
 
             # Add up all losses (objective loss + weigh loss for now)
             total_loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
             tf.summary.scalar('total_loss', total_loss)
 
         with tf.name_scope('losses_baseline'):
-            # Baseline displacement loss
-            baseline_stacked_disp_preds = tf.zeros_like(self.stacked_disp_preds)
-            baseline_displacement_error = loss_utils.displacement_error(self.gt_disp_field_map,
-                                                                        baseline_stacked_disp_preds,
-                                                                        self.level_loss_coefs,
-                                                                        self.input_disp_polygon_map)
-            tf.summary.scalar('baseline_displacement_error', baseline_displacement_error)
+            if self.add_disp_output:
+                # Baseline displacement loss
+                baseline_stacked_disp_preds = tf.zeros_like(self.stacked_disp_preds)
+                baseline_displacement_error = loss_utils.displacement_error(self.gt_disp_field_map,
+                                                                            baseline_stacked_disp_preds,
+                                                                            self.level_loss_coefs,
+                                                                            self.input_disp_polygon_map,
+                                                                            loss_params["disp"])
+                tf.summary.scalar('baseline_displacement_error', baseline_displacement_error)
         return total_loss
 
-    def build_evaluator(self):
-        thresholds = np.arange(0, 8.0, 0.5)
-        disp_max_abs_value = self.disp_max_abs_value
-
-        def evaluate(pred_disp_field_map_batch, disp_polygons_batch, gt_polygons_batch):
-            # val_gt_disp_field_map_batch *= 2*config.DISP_MAX_ABS_VALUE  # Denormalize
-            # val_aligned_disp_polygons_batch = polygon_utils.apply_batch_disp_map_to_polygons(
-            #     val_gt_disp_field_map_batch, val_disp_polygons_batch)
-            pred_disp_field_map_batch *= 2 * disp_max_abs_value  # Denormalize
-            aligned_disp_polygons_batch = polygon_utils.apply_batch_disp_map_to_polygons(
-                pred_disp_field_map_batch, disp_polygons_batch)
-            threshold_accuracies = evaluate_utils.compute_threshold_accuracies(gt_polygons_batch,
-                                                                               aligned_disp_polygons_batch,
-                                                                               thresholds)  # TODO: add padding information to filter out vertices outside output image
-            aligned_disp_polygons_batch = aligned_disp_polygons_batch.astype(np.float32)
-            threshold_accuracies = np.array(threshold_accuracies).astype(np.float32)
-            return aligned_disp_polygons_batch, threshold_accuracies
-
-        with tf.name_scope('evaluator'):
-            aligned_disp_polygons_batch, threshold_accuracies = tf.py_func(
-                evaluate,
-                [self.level_0_disp_pred, self.disp_polygons, self.gt_polygons],
-                Tout=(tf.float32, tf.float32),
-                name="evaluator"
-            )
-
-            threshold_accuracies.set_shape((1, len(thresholds)))
-
-            # tf.summary.scalar('accuracy with threshold 1', threshold_accuracies[0])
-            # # tf.summary.scalar('accuracy with threshold 2', threshold_accuracy_2)
-            # # tf.summary.scalar('accuracy with threshold 3', threshold_accuracy_3)
-            # # tf.summary.scalar('accuracy with threshold 4', threshold_accuracy_4)
-            # # tf.summary.scalar('accuracy with threshold 5', threshold_accuracy_5)
-            # # tf.summary.scalar('accuracy with threshold 6', threshold_accuracy_6)
-            # # tf.summary.scalar('accuracy with threshold 7', threshold_accuracy_7)
-            # # tf.summary.scalar('accuracy with threshold 8', threshold_accuracy_8)
-
-        return aligned_disp_polygons_batch, threshold_accuracies
+    # def build_evaluator(self):
+    #     thresholds = np.arange(0, 8.0, 0.5)
+    #     disp_max_abs_value = self.disp_max_abs_value
+    #
+    #     def evaluate(pred_disp_field_map_batch, disp_polygons_batch, gt_polygons_batch):
+    #         # val_gt_disp_field_map_batch *= 2*DISP_MAX_ABS_VALUE  # Denormalize
+    #         # val_aligned_disp_polygons_batch = polygon_utils.apply_batch_disp_map_to_polygons(
+    #         #     val_gt_disp_field_map_batch, val_disp_polygons_batch)
+    #         pred_disp_field_map_batch *= 2 * disp_max_abs_value  # Denormalize
+    #         aligned_disp_polygons_batch = polygon_utils.apply_batch_disp_map_to_polygons(
+    #             pred_disp_field_map_batch, disp_polygons_batch)
+    #         threshold_accuracies = evaluate_utils.compute_threshold_accuracies(gt_polygons_batch,
+    #                                                                            aligned_disp_polygons_batch,
+    #                                                                            thresholds)  # TODO: add padding information to filter out vertices outside output image
+    #         aligned_disp_polygons_batch = aligned_disp_polygons_batch.astype(np.float32)
+    #         threshold_accuracies = np.array(threshold_accuracies).astype(np.float32)
+    #         return aligned_disp_polygons_batch, threshold_accuracies
+    #
+    #     with tf.name_scope('evaluator'):
+    #         aligned_disp_polygons_batch, threshold_accuracies = tf.py_func(
+    #             evaluate,
+    #             [self.level_0_disp_pred, self.disp_polygons, self.gt_polygons],
+    #             Tout=(tf.float32, tf.float32),
+    #             name="evaluator"
+    #         )
+    #
+    #         threshold_accuracies.set_shape((1, len(thresholds)))
+    #
+    #         # tf.summary.scalar('accuracy with threshold 1', threshold_accuracies[0])
+    #         # # tf.summary.scalar('accuracy with threshold 2', threshold_accuracy_2)
+    #         # # tf.summary.scalar('accuracy with threshold 3', threshold_accuracy_3)
+    #         # # tf.summary.scalar('accuracy with threshold 4', threshold_accuracy_4)
+    #         # # tf.summary.scalar('accuracy with threshold 5', threshold_accuracy_5)
+    #         # # tf.summary.scalar('accuracy with threshold 6', threshold_accuracy_6)
+    #         # # tf.summary.scalar('accuracy with threshold 7', threshold_accuracy_7)
+    #         # # tf.summary.scalar('accuracy with threshold 8', threshold_accuracy_8)
+    #
+    #     return aligned_disp_polygons_batch, threshold_accuracies
 
     def build_optimizer(self):
         with tf.name_scope('adam_optimizer'):
@@ -272,44 +397,53 @@ class MapAlignModel:
         train_image_batch, train_gt_polygon_map_batch, train_gt_disp_field_map_batch, train_disp_polygon_map_batch = sess.run(
             [train_image, train_gt_polygon_map, train_gt_disp_field_map, train_disp_polygon_map])
 
+        feed_dict = {
+            self.input_image: train_image_batch,
+            self.input_disp_polygon_map: train_disp_polygon_map_batch,
+            self.gt_disp_field_map: train_gt_disp_field_map_batch,
+            self.gt_seg: train_gt_polygon_map_batch,
+            self.gt_polygons: tf_utils.create_array_to_feed_placeholder(self.gt_polygons),
+            self.disp_polygons: tf_utils.create_array_to_feed_placeholder(self.disp_polygons),
+            self.keep_prob: dropout_keep_prob,
+        }
+
         if with_summaries:
             if summary_index == 0:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
             else:
                 run_options = run_metadata = None
+
+            input_list = [merged_summaries, self.train_step, self.total_loss]
+            if self.add_disp_output:
+                input_list.append(self.level_0_disp_pred)
             if self.add_seg_output:
-                train_summary, _, train_loss, train_pred_disp_field_map_batch, train_pred_seg_batch = sess.run(
-                    [merged_summaries, self.train_step, self.total_loss, self.level_0_disp_pred, self.level_0_seg_pred],
-                    feed_dict={self.input_image: train_image_batch,
-                               self.input_disp_polygon_map: train_disp_polygon_map_batch,
-                               self.gt_disp_field_map: train_gt_disp_field_map_batch,
-                               self.gt_seg: train_gt_polygon_map_batch,
-                               self.gt_polygons: tf_utils.create_array_to_feed_placeholder(self.gt_polygons),
-                               self.disp_polygons: tf_utils.create_array_to_feed_placeholder(self.disp_polygons),
-                               self.keep_prob: dropout_keep_prob}, options=run_options, run_metadata=run_metadata)
-            else:
-                train_summary, _, train_loss, train_pred_disp_field_map_batch = sess.run(
-                    [merged_summaries, self.train_step, self.total_loss, self.level_0_disp_pred],
-                    feed_dict={self.input_image: train_image_batch,
-                               self.input_disp_polygon_map: train_disp_polygon_map_batch,
-                               self.gt_disp_field_map: train_gt_disp_field_map_batch,
-                               self.gt_seg: train_gt_polygon_map_batch,
-                               self.gt_polygons: tf_utils.create_array_to_feed_placeholder(self.gt_polygons),
-                               self.disp_polygons: tf_utils.create_array_to_feed_placeholder(self.disp_polygons),
-                               self.keep_prob: dropout_keep_prob}, options=run_options, run_metadata=run_metadata)
-                train_pred_seg_batch = None
+                input_list.append(self.level_0_seg_pred)
+
+            output_list = sess.run(input_list, feed_dict=feed_dict, options=run_options, run_metadata=run_metadata)
+
+            extra_output_count = self.add_disp_output + self.add_seg_output
+            train_summary, _, train_loss = output_list[:-extra_output_count]
+
+            train_pred_disp_field_map_batch = train_pred_seg_batch = None
+            if self.add_disp_output:
+                index = -extra_output_count
+                train_pred_disp_field_map_batch = output_list[index]
+            if self.add_seg_output:
+                index = -extra_output_count + self.add_disp_output
+                train_pred_seg_batch = output_list[index]
+
             # TODO: If uncommenting below code, also add relevant code to the "else" block below
             # train_summary, _, train_loss, train_pred_disp_field_map_batch = sess.run(
             #     [merged_summaries, train_step, total_loss, pred_disp_field_map],
             #     feed_dict={input_image: train_gt_polygon_map_batch, input_disp_polygon_map: train_disp_polygon_map_batch,
             #                gt_disp_field_map: train_gt_disp_field_map_batch,
-            #                keep_prob: config.DROPOUT_KEEP_PROB,
+            #                keep_prob: DROPOUT_KEEP_PROB,
             #                mode_training: True}, options=run_options, run_metadata=run_metadata)
             summaries_writer.add_summary(train_summary, summary_index)
             if summary_index == 0:
                 summaries_writer.add_run_metadata(run_metadata, 'step%03d' % summary_index)
-            print("step {}, training loss = {}".format(summary_index, train_loss))
+            print_utils.print_info("step {}, training loss = {}".format(summary_index, train_loss))
 
             if plot:
                 train_image_batch = (train_image_batch - self.image_dynamic_range[0]) / (
@@ -327,15 +461,7 @@ class MapAlignModel:
 
             return train_image_batch, train_gt_polygon_map_batch, train_gt_disp_field_map_batch, train_disp_polygon_map_batch, train_pred_disp_field_map_batch, train_pred_seg_batch
         else:
-            _ = sess.run([self.train_step], feed_dict={self.input_image: train_image_batch,
-                                                       self.input_disp_polygon_map: train_disp_polygon_map_batch,
-                                                       self.gt_disp_field_map: train_gt_disp_field_map_batch,
-                                                       self.gt_seg: train_gt_polygon_map_batch,
-                                                       self.gt_polygons: tf_utils.create_array_to_feed_placeholder(
-                                                           self.gt_polygons),
-                                                       self.disp_polygons: tf_utils.create_array_to_feed_placeholder(
-                                                           self.disp_polygons),
-                                                       self.keep_prob: dropout_keep_prob})
+            _ = sess.run([self.train_step], feed_dict=feed_dict)
             return train_image_batch, train_gt_polygon_map_batch, train_gt_disp_field_map_batch, train_disp_polygon_map_batch, None, None
 
     def validate(self, sess, dataset_tensors, merged_summaries, summaries_writer, summary_index, plot=False):
@@ -348,34 +474,36 @@ class MapAlignModel:
         val_image_batch, val_gt_polygons_batch, val_disp_polygons_batch, val_gt_polygon_map_batch, val_gt_disp_field_map_batch, val_disp_polygon_map_batch = sess.run(
             [val_image, val_gt_polygons, val_disp_polygons, val_gt_polygon_map, val_gt_disp_field_map,
              val_disp_polygon_map])
-        # Run inference on model
+
+        feed_dict = {
+            self.input_image: val_image_batch,
+            self.input_disp_polygon_map: val_disp_polygon_map_batch,
+            self.gt_disp_field_map: val_gt_disp_field_map_batch,
+            self.gt_seg: val_gt_polygon_map_batch,
+            self.gt_polygons: val_gt_polygons_batch,
+            self.disp_polygons: val_disp_polygons_batch,
+            self.keep_prob: 1.0
+        }
+
+        input_list = [merged_summaries, self.total_loss]
+        if self.add_disp_output:
+            input_list.append(self.level_0_disp_pred)
         if self.add_seg_output:
-            val_summary, val_loss, val_aligned_disp_polygons_batch, val_threshold_accuracies, val_pred_disp_field_map_batch, val_pred_seg_batch = sess.run(
-                [merged_summaries, self.total_loss, self.aligned_disp_polygons_batch, self.threshold_accuracies,
-                 self.level_0_disp_pred, self.level_0_seg_pred],
-                feed_dict={
-                    self.input_image: val_image_batch,
-                    self.input_disp_polygon_map: val_disp_polygon_map_batch,
-                    self.gt_disp_field_map: val_gt_disp_field_map_batch,
-                    self.gt_seg: val_gt_polygon_map_batch,
-                    self.gt_polygons: val_gt_polygons_batch,
-                    self.disp_polygons: val_disp_polygons_batch,
-                    self.keep_prob: 1.0
-                })
-        else:
-            val_summary, val_loss, val_aligned_disp_polygons_batch, val_threshold_accuracies, val_pred_disp_field_map_batch = sess.run(
-                [merged_summaries, self.total_loss, self.aligned_disp_polygons_batch, self.threshold_accuracies,
-                 self.level_0_disp_pred],
-                feed_dict={
-                    self.input_image: val_image_batch,
-                    self.input_disp_polygon_map: val_disp_polygon_map_batch,
-                    self.gt_disp_field_map: val_gt_disp_field_map_batch,
-                    self.gt_seg: val_gt_polygon_map_batch,
-                    self.gt_polygons: val_gt_polygons_batch,
-                    self.disp_polygons: val_disp_polygons_batch,
-                    self.keep_prob: 1.0
-                })
-            val_pred_seg_batch = None
+            input_list.append(self.level_0_seg_pred)
+
+        output_list = sess.run(input_list, feed_dict=feed_dict)
+
+        extra_output_count = self.add_disp_output + self.add_seg_output
+        val_summary, val_loss, = output_list[:-extra_output_count]
+
+        val_pred_disp_field_map_batch = val_pred_seg_batch = None
+        if self.add_disp_output:
+            index = -extra_output_count
+            val_pred_disp_field_map_batch = output_list[index]
+        if self.add_seg_output:
+            index = -extra_output_count + self.add_disp_output
+            val_pred_seg_batch = output_list[index]
+
         if plot:
             val_image_batch = (val_image_batch - self.image_dynamic_range[0]) / (
                     self.image_dynamic_range[1] - self.image_dynamic_range[0])
@@ -385,8 +513,8 @@ class MapAlignModel:
                 visualization.plot_batch_seg("Validation pred seg", val_image_batch, val_pred_seg_batch)
 
         summaries_writer.add_summary(val_summary, summary_index)
-        print("step {}, validation loss = {}".format(summary_index, val_loss))
-        print("\t validation threshold accuracies = {}".format(val_threshold_accuracies))
+        print_utils.print_info("step {}, validation loss = {}".format(summary_index, val_loss))
+        # print("\t validation threshold accuracies = {}".format(val_threshold_accuracies))
         return val_image_batch, val_gt_polygons_batch, val_disp_polygons_batch, val_gt_polygon_map_batch, val_gt_disp_field_map_batch, val_disp_polygon_map_batch, val_pred_disp_field_map_batch, val_pred_seg_batch
 
     def restore_checkpoint(self, sess, saver, checkpoints_dir):
@@ -399,11 +527,11 @@ class MapAlignModel:
         """
         checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
         if checkpoint and checkpoint.model_checkpoint_path:  # Check if the model has a checkpoint
-            print("Restoring {} checkpoint {}".format(self.model_name, checkpoint.model_checkpoint_path))
+            print_utils.print_info("Restoring {} checkpoint {}".format(self.model_name, checkpoint.model_checkpoint_path))
             try:
                 saver.restore(sess, checkpoint.model_checkpoint_path)
             except tf.errors.InvalidArgumentError:
-                print("ERROR: could not load checkpoint.\n"
+                print_utils.print_error("ERROR: could not load checkpoint.\n"
                       "\tThis is likely due to: .\n"
                       "\t\t -  the model graph definition has changed from the checkpoint thus weights do not match\n"
                       .format(checkpoints_dir)
@@ -434,7 +562,7 @@ class MapAlignModel:
         """
 
         :param train_dataset_tensors:
-        :param val_dataset_tensors:
+        :param val_dataset_tensors: (If None: do not perform validation step)
         :param max_iter:
         :param dropout_keep_prob:
         :param logs_dir:
@@ -469,13 +597,15 @@ class MapAlignModel:
                 # Create saver with only trainable variables:
                 init_variables_saver = tf.train.Saver(tf.trainable_variables())
                 # Restore from init_checkpoints_dirpath if it exists:
-                restore_checkpoint_success = self.restore_checkpoint(sess, init_variables_saver, init_checkpoints_dirpath)
+                restore_checkpoint_success = self.restore_checkpoint(sess, init_variables_saver,
+                                                                     init_checkpoints_dirpath)
 
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(coord=coord)
 
             if plot_results:
                 visualization.init_figures(["Training gt disp", "Training pred disp", "Training pred seg",
+                                            "Training polygonization",
                                             "Validation plot", "Validation pred seg"])
 
             print("Model has {} trainable variables".format(
@@ -502,18 +632,19 @@ class MapAlignModel:
                 else:
                     self.train(sess, train_dataset_tensors, dropout_keep_prob)
 
-                # i += 1
-                # Measure validation loss and accuracy
-                if i % val_summary_step == 1:
-                    val_image_batch, \
-                    val_gt_polygons_batch, \
-                    val_disp_polygons_batch, \
-                    val_gt_polygon_map_batch, \
-                    val_gt_disp_field_map_batch, \
-                    val_disp_polygon_map_batch, \
-                    val_pred_disp_field_map_batch, val_pred_seg_batch = self.validate(sess, val_dataset_tensors,
-                                                                                      merged_summaries, val_writer, i,
-                                                                                      plot=plot_results)
+                if val_dataset_tensors is not None:
+                    # i += 1
+                    # Measure validation loss and accuracy
+                    if i % val_summary_step == 1:
+                        val_image_batch, \
+                        val_gt_polygons_batch, \
+                        val_disp_polygons_batch, \
+                        val_gt_polygon_map_batch, \
+                        val_gt_disp_field_map_batch, \
+                        val_disp_polygon_map_batch, \
+                        val_pred_disp_field_map_batch, val_pred_seg_batch = self.validate(sess, val_dataset_tensors,
+                                                                                          merged_summaries, val_writer, i,
+                                                                                          plot=plot_results)
                 # Save checkpoint
                 if i % checkpoint_step == (checkpoint_step - 1):
                     saver.save(sess, os.path.join(checkpoints_dir, self.model_name),
@@ -559,9 +690,9 @@ class MapAlignModel:
 
         # Init displacement field and segmentation image
         complete_pred_field_map = np.zeros(
-            (spatial_shape[0] - 2 * padding, spatial_shape[1] - 2 * padding, self.disp_output_channels))
+            (spatial_shape[0] - 2 * padding, spatial_shape[1] - 2 * padding, self.disp_channel_count))
         complete_segmentation_image = np.zeros(
-            (spatial_shape[0] - 2 * padding, spatial_shape[1] - 2 * padding, self.seg_output_channels))
+            (spatial_shape[0] - 2 * padding, spatial_shape[1] - 2 * padding, self.seg_channel_count))
 
         # visualization.init_figures(["example"])
 
@@ -569,7 +700,8 @@ class MapAlignModel:
         patch_boundingboxes = image_utils.compute_patch_boundingboxes(spatial_shape,
                                                                       stride=self.output_res,
                                                                       patch_res=self.input_res)
-        batch_boundingboxes_list = list(python_utils.split_list_into_chunks(patch_boundingboxes, self.batch_size, pad=True))
+        batch_boundingboxes_list = list(
+            python_utils.split_list_into_chunks(patch_boundingboxes, self.batch_size, pad=True))
 
         # Saver
         saver = tf.train.Saver(save_relative_paths=True)
@@ -601,11 +733,12 @@ class MapAlignModel:
                 batch_ori_gt = np.stack(batch_ori_gt_list, axis=0)
 
                 if self.add_seg_output:
-                    batch_pred_disp_field_map, batch_pred_seg = sess.run([self.level_0_disp_pred, self.level_0_seg_pred], feed_dict={
-                        self.input_image: batch_image,
-                        self.input_disp_polygon_map: batch_ori_gt,
-                        self.keep_prob: 1.0
-                    })
+                    batch_pred_disp_field_map, batch_pred_seg = sess.run(
+                        [self.level_0_disp_pred, self.level_0_seg_pred], feed_dict={
+                            self.input_image: batch_image,
+                            self.input_disp_polygon_map: batch_ori_gt,
+                            self.keep_prob: 1.0
+                        })
                 else:
                     batch_pred_disp_field_map = sess.run(
                         self.level_0_disp_pred, feed_dict={
@@ -613,7 +746,8 @@ class MapAlignModel:
                             self.input_disp_polygon_map: batch_ori_gt,
                             self.keep_prob: 1.0
                         })
-                    batch_pred_seg = np.zeros((batch_pred_disp_field_map.shape[0], batch_pred_disp_field_map.shape[1], batch_pred_disp_field_map.shape[2], self.seg_output_channels))
+                    batch_pred_seg = np.zeros((batch_pred_disp_field_map.shape[0], batch_pred_disp_field_map.shape[1],
+                                               batch_pred_disp_field_map.shape[2], self.seg_channel_count))
 
                 # Fill complete outputs
                 for batch_index, boundingbox in enumerate(batch_boundingboxes):
@@ -663,7 +797,7 @@ class MapAlignModel:
 
         # De-normalize field map
         complete_pred_field_map = complete_pred_field_map / self.disp_map_dynamic_range_fac  # Within [-1, 1]
-        complete_pred_field_map = complete_pred_field_map * self.disp_max_abs_value  # Within [-config.DISP_MAX_ABS_VALUE, config.DISP_MAX_ABS_VALUE]
+        complete_pred_field_map = complete_pred_field_map * self.disp_max_abs_value  # Within [-DISP_MAX_ABS_VALUE, DISP_MAX_ABS_VALUE]
 
         # # De-normalize segmentation image
         # complete_segmentation_image = complete_segmentation_image * 255
@@ -680,24 +814,7 @@ class MapAlignModel:
         :param pool_count:
         :return:
         """
-        current_res = input_res
-        warning_non_zero_remainder = False
-        # branch_image
-        for i in range(pool_count):
-            current_res -= 4  # 2 conv3x3
-            current_res, r = divmod(current_res, 2)  # pool
-            warning_non_zero_remainder = warning_non_zero_remainder or bool(r)
-        current_res -= 4  # 2 conv3x3 of the last layer
-        # common_part
-        current_res -= 4  # 2 conv3x3
-        # branch_disp
-        for i in range(pool_count):
-            current_res *= 2  # upsample
-            current_res -= 4  # 2 conv3x3
-        if warning_non_zero_remainder:
-            print(
-                "WARNING: a pooling operation will result in a non integer res, the network will automatically add padding there. The output of this function is not garanteed to be exact.")
-        return int(current_res)
+        return model_utils.get_output_res(input_res, pool_count)
 
     @staticmethod
     def get_input_res(output_res, pool_count):
@@ -708,34 +825,17 @@ class MapAlignModel:
         :param pool_count:
         :return:
         """
-        current_res = output_res
-        warning_non_zero_remainder = False
-        # branch_disp
-        for i in range(pool_count):
-            current_res += 4  # 2 conv3x3
-            current_res, r = divmod(current_res, 2)  # upsample
-            warning_non_zero_remainder = warning_non_zero_remainder or bool(r)
-        # common_part
-        current_res += 4  # 2 conv3x3
-        # branch_image
-        current_res += 4  # 2 conv3x3 of the last layer
-        for i in range(pool_count):
-            current_res *= 2  # pool
-            current_res += 4  # 2 conv3x3
-        if warning_non_zero_remainder:
-            print(
-                "WARNING: a pooling operation will result in a non integer res, the network will automatically add padding there. The output of this function is not garanteed to be exact.")
-        return int(current_res)
+        return model_utils.get_input_res(output_res, pool_count)
 
 
 def main(_):
-    input_res = 220
+    input_res = 348
     pool_count = 3
     print("Get output_res from input_res = {}".format(input_res))
     output_res = MapAlignModel.get_output_res(input_res, pool_count)
     print("output_res = {}".format(output_res))
 
-    output_res = 10
+    output_res = 228
     pool_count = 3
     print("Get input_res from output_res = {}".format(output_res))
     input_res = MapAlignModel.get_input_res(output_res, pool_count)

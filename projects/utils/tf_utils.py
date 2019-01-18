@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.framework.ops import get_gradient_function
 import math
 import numpy as np
 
@@ -21,7 +22,7 @@ def compute_current_adam_lr(optimizer):
     # at = a0 * (1 - bb2) ** 0.5 / (1 - bb1)
     # return at
 
-    return optimizer._updated_lr or optimizer._lr_t  # TODO: verify if this works
+    return optimizer._lr  # TODO: verify if this works
 
 
 def count_number_trainable_params(trainable_variables=None):
@@ -55,19 +56,26 @@ def conv2d(x, W, stride=1, padding="SAME"):
 
 
 def complete_conv2d(input_tensor, output_channels, kernel_size, stride=1, padding="SAME", activation=tf.nn.relu, bias_init_value=0.025,
-                    std_factor=1, weight_decay=None):
+                    std_factor=1, weight_decay=None, summary=False):
     input_channels = input_tensor.get_shape().as_list()[-1]
     output_channels = int(output_channels)
     with tf.name_scope('W'):
         w_conv = weight_variable([kernel_size[0], kernel_size[1], input_channels, output_channels], std_factor=std_factor, wd=weight_decay)
-        variable_summaries(w_conv)
+        if summary:
+            variable_summaries(w_conv)
     with tf.name_scope('bias'):
         b_conv = bias_variable([output_channels], init_value=bias_init_value)
-        variable_summaries(b_conv)
+        if summary:
+            variable_summaries(b_conv)
     z_conv = conv2d(input_tensor, w_conv, stride=stride, padding=padding) + b_conv
-    tf.summary.histogram('pre_activations', z_conv)
-    h_conv = activation(z_conv)
-    tf.summary.histogram('activations', h_conv)
+    if summary:
+        tf.summary.histogram('pre_activations', z_conv)
+    if activation is not None:
+        h_conv = activation(z_conv)
+    else:
+        h_conv = z_conv
+    if summary:
+        tf.summary.histogram('activations', h_conv)
     return h_conv
 
 
@@ -77,37 +85,45 @@ def conv2d_transpose(x, W, output_shape, stride=1, padding="SAME"):  # TODO: add
 
 
 def complete_conv2d_transpose(input_tensor, output_channels, output_size, kernel_size, stride=1, padding="SAME", activation=tf.nn.relu,
-                              bias_init_value=0.025, std_factor=1, weight_decay=None):
+                              bias_init_value=0.025, std_factor=1, weight_decay=None, summary=False):
     batch_size = input_tensor.get_shape().as_list()[0]
     input_channels = input_tensor.get_shape().as_list()[-1]
     output_channels = int(output_channels)
     with tf.name_scope('W'):
         w_conv = weight_variable([kernel_size[0], kernel_size[1], output_channels, input_channels], std_factor=std_factor, wd=weight_decay)
-        variable_summaries(w_conv)
+        if summary:
+            variable_summaries(w_conv)
     with tf.name_scope('bias'):
         b_conv = bias_variable([output_channels], init_value=bias_init_value)
-        variable_summaries(b_conv)
+        if summary:
+            variable_summaries(b_conv)
     z_conv = conv2d_transpose(input_tensor, w_conv, [batch_size, output_size[0], output_size[1], output_channels], stride=stride, padding=padding) + b_conv
-    tf.summary.histogram('pre_activations', z_conv)
+    if summary:
+        tf.summary.histogram('pre_activations', z_conv)
     h_conv = activation(z_conv)
-    tf.summary.histogram('activations', h_conv)
+    if summary:
+        tf.summary.histogram('activations', h_conv)
     return h_conv
 
 
-def complete_fc(input_tensor, output_channels, bias_init_value=0.025, weight_decay=None, activation=tf.nn.relu):
+def complete_fc(input_tensor, output_channels, bias_init_value=0.025, weight_decay=None, activation=tf.nn.relu, summary=False):
     batch_size = input_tensor.get_shape().as_list()[0]
     net = tf.reshape(input_tensor, (batch_size, -1))
     input_channels = net.get_shape().as_list()[-1]
     with tf.name_scope('W'):
         w_fc = weight_variable([input_channels, output_channels], wd=weight_decay)
-        variable_summaries(w_fc)
+        if summary:
+            variable_summaries(w_fc)
     with tf.name_scope('bias'):
         b_fc = bias_variable([output_channels], init_value=bias_init_value)
-        variable_summaries(b_fc)
+        if summary:
+            variable_summaries(b_fc)
     z_fc = tf.matmul(net, w_fc) + b_fc
-    tf.summary.histogram('pre_activations', z_fc)
+    if summary:
+        tf.summary.histogram('pre_activations', z_fc)
     h_fc = activation(z_fc)
-    tf.summary.histogram('activations', h_fc)
+    if summary:
+        tf.summary.histogram('activations', h_fc)
     return h_fc
 
 
@@ -176,14 +192,13 @@ def make_depthwise_kernel(a, in_channels):
     return a
 
 
-def dilate(input, filter_size=2):
-    rank = len(input.get_shape())
+def dilate(image, filter_size=2):
+    rank = len(image.get_shape())
     if rank == 3:
-        input = tf.expand_dims(input, axis=0)  # Add batch dim
-    depth = input.get_shape().as_list()[-1]
-
+        image = tf.expand_dims(image, axis=0)  # Add batch dim
+    depth = image.get_shape().as_list()[-1]
     filter = np.zeros((filter_size, filter_size, depth))  # I don't know why filter with all zeros works...
-    output = tf.nn.dilation2d(input, filter, strides=[1, 1, 1, 1], rates=[1, 1, 1, 1], padding="SAME")
+    output = tf.nn.dilation2d(image, filter, strides=[1, 1, 1, 1], rates=[1, 1, 1, 1], padding="SAME", name='dilation2d')
 
     if rank == 3:
         return output[0]
@@ -202,6 +217,30 @@ def dilate(input, filter_size=2):
     #     return output[0]
     # else:
     #     return output
+
+
+def gaussian_blur(image, filter_size, mean, std):
+    def make_gaussian_kernel(size: int,
+                        mean: float,
+                        std: float,
+                        ):
+        """Makes 2D gaussian Kernel for convolution."""
+        mean = float(mean)
+        std= float(std)
+        d = tf.distributions.Normal(mean, std)
+
+        vals = d.prob(tf.range(start=-size, limit=size + 1, dtype=tf.float32))
+
+        gauss_kernel = tf.einsum('i,j->ij',
+                                 vals,
+                                 vals)
+
+        return gauss_kernel / tf.reduce_sum(gauss_kernel)
+
+    gauss_kernel = make_gaussian_kernel(filter_size, mean, std)
+    gauss_kernel = gauss_kernel[:, :, tf.newaxis, tf.newaxis]
+    image_blurred = tf.nn.conv2d(image, gauss_kernel, strides=[1, 1, 1, 1], padding="SAME")
+    return image_blurred
 
 
 def create_array_to_feed_placeholder(placeholder):

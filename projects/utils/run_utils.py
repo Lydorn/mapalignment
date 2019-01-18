@@ -4,8 +4,11 @@
 import os
 import time
 import datetime
-import shutil
+from jsmin import jsmin
+import json
 import random
+
+import print_utils
 
 NAME_SET = set([
     # Muhammad ibn Jābir al-Ḥarrānī al-Battānī was a founding father of astronomy. https://en.wikipedia.org/wiki/Mu%E1%B8%A5ammad_ibn_J%C4%81bir_al-%E1%B8%A4arr%C4%81n%C4%AB_al-Batt%C4%81n%C4%AB
@@ -569,11 +572,14 @@ def setup_run_dir(runs_dirpath, run_name=None, new_run=False):
             # Pick run dir based on run_name
             filtered_existing_run_dirnames = [existing_run_dirname for existing_run_dirname in existing_run_dirnames if
                                               existing_run_dirname.split(" | ")[0] == run_name]
-            filtered_existing_run_timestamps = [filtered_existing_run_dirname.split(" | ")[1] for
-                                                filtered_existing_run_dirname in
-                                                filtered_existing_run_dirnames]
-            filtered_last_index = filtered_existing_run_timestamps.index(max(filtered_existing_run_timestamps))
-            current_run_dirname = filtered_existing_run_dirnames[filtered_last_index]
+            if filtered_existing_run_dirnames:
+                filtered_existing_run_timestamps = [filtered_existing_run_dirname.split(" | ")[1] for
+                                                    filtered_existing_run_dirname in
+                                                    filtered_existing_run_dirnames]
+                filtered_last_index = filtered_existing_run_timestamps.index(max(filtered_existing_run_timestamps))
+                current_run_dirname = filtered_existing_run_dirnames[filtered_last_index]
+            else:
+                raise ValueError("run name \"{}\" was not found in directory \"{}\"".format(run_name, runs_dirpath))
         else:
             # Pick last run dir based on timestamp
             existing_run_timestamps = [existing_run_dirname.split(" | ")[1] for existing_run_dirname in
@@ -603,7 +609,7 @@ def create_random_name_timestamped(exclude_list=None):
     return name_timestamped
 
 
-def setup_run_subdirs(run_dir, logs_dirname, checkpoints_dirname):
+def setup_run_subdirs(run_dir, logs_dirname="logs", checkpoints_dirname="checkpoints"):
     logs_dir = os.path.join(run_dir, logs_dirname)
     checkpoints_dir = os.path.join(run_dir, checkpoints_dirname)
     if not os.path.exists(logs_dir):
@@ -613,5 +619,27 @@ def setup_run_subdirs(run_dir, logs_dirname, checkpoints_dirname):
     return logs_dir, checkpoints_dir
 
 
-def save_config(project_dir, current_logs_dir):
-    shutil.copyfile(os.path.join(project_dir, "config.py"), os.path.join(current_logs_dir, "config.py"))
+def save_config(config, config_dirpath):
+    filepath = os.path.join(config_dirpath, 'config.json')
+    with open(filepath, 'w') as outfile:
+        json.dump(config, outfile)
+    # shutil.copyfile(os.path.join(project_dir, "config.py"), os.path.join(current_logs_dir, "config.py"))
+
+
+def load_config(config_name="config", config_dirpath=""):
+    config_filepath = os.path.join(config_dirpath, config_name + ".json")
+    try:
+        with open(config_filepath, 'r') as f:
+            minified = jsmin(f.read())
+            config = json.loads(minified)
+        return config
+    except FileNotFoundError:
+        if config_name == "config" and config_dirpath == "":
+            print_utils.print_warning(
+                "WARNING: the default config file was not found....")
+            return None
+        else:
+            print_utils.print_warning(
+                "WARNING: config file {} was not found, opening default config file config.json instead.".format(
+                    config_filepath))
+            return load_config()

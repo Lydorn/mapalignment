@@ -171,7 +171,7 @@ def save_patch_to_tfrecord(patch, shard_writer):
     shard_writer.write(example.SerializeToString())
 
 
-def process_image(dataset_raw_dirpath, image_info, patch_stride, patch_res, downsampling_factors, disp_max_abs_value,
+def process_image(dataset_raw_dirpath, image_info, overwrite_polygons_filename_extension, patch_stride, patch_res, downsampling_factors, disp_max_abs_value,
                   include_polygons,
                   downsampling_factor_writers):
     """
@@ -188,7 +188,7 @@ def process_image(dataset_raw_dirpath, image_info, patch_stride, patch_res, down
     :return:
     """
     ori_image, ori_metadata, ori_gt_polygons = read.load_gt_data(dataset_raw_dirpath, image_info["city"],
-                                                                 image_info["number"])
+                                                                 image_info["number"], overwrite_polygons_filename_extension=overwrite_polygons_filename_extension)
 
     if ori_gt_polygons is None:
         return False
@@ -253,21 +253,15 @@ def process_image(dataset_raw_dirpath, image_info, patch_stride, patch_res, down
 
 
 def process_dataset(dataset_fold, dataset_raw_dirpath,
-                    patch_stride, patch_res, image_info_list,
+                    patch_stride, patch_res, image_info_list, overwrite_polygons_filename_extension,
                     data_aug_rot,
                     downsampling_factors,
                     disp_max_abs_value):
     print("Processing images from {}".format(dataset_raw_dirpath))
 
-    # Create shard writers
-    shard_writers = {}
-    for downsampling_factor in downsampling_factors:
-        filename_format = os.path.join(config.TFRECORDS_DIR, config.TFRECORD_FILENAME_FORMAT.format(dataset_fold, downsampling_factor))
-        shard_writer = dataset_utils.TFRecordShardWriter(filename_format, config.RECORDS_PER_SHARD)
-        shard_writers[downsampling_factor] = shard_writer
-
     for image_index, image_info in enumerate(image_info_list):
-        print("Processing city {}, tile number {}. Progression: {}/{}"
+        image_name = read.IMAGE_NAME_FORMAT.format(city=image_info["city"], number=image_info["number"])
+        print("Processing city {}, number {}. Progression: {}/{}"
               .format(image_info["city"], image_info["number"], image_index + 1, len(image_info_list)))
 
         include_polygons = (dataset_fold == "val" or dataset_fold == "test")
@@ -285,16 +279,25 @@ def process_dataset(dataset_fold, dataset_raw_dirpath,
         image_downsampling_factors = [downsampling_factor for downsampling_factor in downsampling_factors if
                                       image_info["min_downsampling_factor"] <= downsampling_factor]
 
-        process_image(dataset_raw_dirpath, image_info,
+        # Create writers
+        writers = {}
+        for downsampling_factor in downsampling_factors:
+            filename_format = os.path.join(config.TFRECORDS_DIR,
+                                           config.TFRECORD_FILEPATH_FORMAT.format(dataset_fold, image_name,
+                                                                                  downsampling_factor))
+            shard_writer = dataset_utils.TFRecordShardWriter(filename_format, config.RECORDS_PER_SHARD)
+            writers[downsampling_factor] = shard_writer
+
+        process_image(dataset_raw_dirpath, image_info, overwrite_polygons_filename_extension,
                       adjusted_patch_stride, adjusted_patch_res,
                       image_downsampling_factors,
                       disp_max_abs_value,
                       include_polygons,
-                      shard_writers)
+                      writers)
 
-    # Close writers
-    for downsampling_factor in downsampling_factors:
-        shard_writers[downsampling_factor].close()
+        # Close writers
+        for downsampling_factor in downsampling_factors:
+            writers[downsampling_factor].close()
 
 
 def save_metadata(meta_data_filepath, disp_max_abs_value, downsampling_factors):
@@ -323,6 +326,7 @@ def main():
                     config.TILE_STRIDE,
                     config.TILE_RES,
                     config.TRAIN_IMAGES,
+                    config.DATASET_OVERWRITE_POLYGONS_FILENAME_EXTENSION,
                     config.DATA_AUG_ROT,
                     config.DOWNSAMPLING_FACTORS,
                     config.DISP_MAX_ABS_VALUE)
@@ -331,6 +335,7 @@ def main():
                     config.TILE_STRIDE,
                     config.TILE_RES,
                     config.VAL_IMAGES,
+                    config.DATASET_OVERWRITE_POLYGONS_FILENAME_EXTENSION,
                     config.DATA_AUG_ROT,
                     config.DOWNSAMPLING_FACTORS,
                     config.DISP_MAX_ABS_VALUE)
@@ -339,6 +344,7 @@ def main():
                     config.TILE_STRIDE,
                     config.TILE_RES,
                     config.TEST_IMAGES,
+                    config.DATASET_OVERWRITE_POLYGONS_FILENAME_EXTENSION,
                     config.DATA_AUG_ROT,
                     config.DOWNSAMPLING_FACTORS,
                     config.DISP_MAX_ABS_VALUE)

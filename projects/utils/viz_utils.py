@@ -5,6 +5,7 @@ sys.path.append("../../utils")
 import polygon_utils
 
 import skimage.io
+import cv2
 
 
 def save_plot_image_polygon(filepath, image, polygons):
@@ -31,3 +32,14 @@ def save_plot_segmentation_image(filepath, segmentation_image):
     output_image = output_image.astype(np.uint8)
 
     skimage.io.imsave(filepath, output_image)
+
+
+def flow_to_image(flow):
+    mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+    hsv = np.zeros((flow.shape[0], flow.shape[1], 3))
+    hsv[..., 0] = ang * 180 / np.pi / 2
+    hsv[..., 1] = 255
+    hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+    hsv = hsv.astype(np.uint8)
+    rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    return rgb

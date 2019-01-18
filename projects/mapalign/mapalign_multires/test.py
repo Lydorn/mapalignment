@@ -13,7 +13,6 @@ import evaluate_utils
 
 sys.path.append("../../utils")
 import polygon_utils
-import geo_utils
 
 
 def generate_disp_data(normed_disp_field_maps, gt_polygons, disp_max_abs_value):
@@ -69,20 +68,20 @@ def measure_ious(gt_polygons, pred_seg, thresholds, filepath):
     return ious
 
 
-def test(ori_image, ori_metadata, ori_gt_polygons, ori_disp_polygons, batch_size, ds_fac_list, run_name_list,
+def test(runs_dirpath, ori_image, ori_metadata, ori_gt_polygons, ori_disp_polygons, batch_size, ds_fac_list, run_name_list,
          model_disp_max_abs_value, thresholds, test_output_dir, output_name, output_shapefiles=True,
          properties_list=None):
     if output_shapefiles:
         assert properties_list is not None and len(ori_disp_polygons) == len(
             properties_list), "ori_disp_polygons and properties_list should have the same length"
-    polygons_image_plot_filename_format = "{}.polygons.png"
+    polygons_image_plot_filename_format = "{}.polygons.{}.png"
     shapefile_filename_format = "{}.{}_polygons.shp"
     segmentation_image_plot_filename_format = "{}.segmentation.png"
     accuracies_filename_format = "{}.accuracy.npy"
 
     # --- Run the model --- #
     print("# --- Run the model --- #")
-    aligned_disp_polygons, segmentation_image = multires_pipeline.multires_inference(ori_image, ori_metadata,
+    aligned_disp_polygons, segmentation_image = multires_pipeline.multires_inference(runs_dirpath, ori_image, ori_metadata,
                                                                                      ori_disp_polygons,
                                                                                      model_disp_max_abs_value,
                                                                                      batch_size, ds_fac_list,
@@ -97,15 +96,28 @@ def test(ori_image, ori_metadata, ori_gt_polygons, ori_disp_polygons, batch_size
     visualization.save_plot_segmentation_image(plot_segmentation_image_filepath, segmentation_image)
 
     # --- Save polygons plot --- #
-    plot_image_filename = polygons_image_plot_filename_format.format(output_name)
-    plot_image_filepath = os.path.join(test_output_dir, plot_image_filename)
-    visualization.save_plot_image_polygons(plot_image_filepath, ori_image, ori_gt_polygons, ori_disp_polygons,
-                                           aligned_disp_polygons)
+    save_polygon_names = ["all"]  # Can be: ["all", "gt", "disp", "aligned"]
+    for save_polygon_name in save_polygon_names:
+        plot_image_filename = polygons_image_plot_filename_format.format(output_name, save_polygon_name)
+        plot_image_filepath = os.path.join(test_output_dir, plot_image_filename)
+        if save_polygon_name == "all":
+            visualization.save_plot_image_polygons(plot_image_filepath, ori_image, ori_gt_polygons, ori_disp_polygons,
+                                                   aligned_disp_polygons)
+        elif save_polygon_name == "gt":
+            visualization.save_plot_image_polygons(plot_image_filepath, ori_image, ori_gt_polygons, [],
+                                                   [], line_width=3)
+        elif save_polygon_name == "disp":
+            visualization.save_plot_image_polygons(plot_image_filepath, ori_image, [], ori_disp_polygons,
+                                                   [], line_width=3)
+        elif save_polygon_name == "aligned":
+            visualization.save_plot_image_polygons(plot_image_filepath, ori_image, [], [],
+                                                   aligned_disp_polygons, line_width=3)
     # visualization.save_plot_image_polygons(plot_image_filepath, ori_image, [], ori_disp_polygons,
     #                                        aligned_disp_polygons)
 
     # --- Save polygons as shapefiles --- #
     if output_shapefiles:
+        import geo_utils
         print("# --- Save polygons as shapefiles --- #")
         output_shapefile_filename = shapefile_filename_format.format(output_name, "ori")
         output_shapefile_filepath = os.path.join(test_output_dir, output_shapefile_filename)
@@ -128,8 +140,37 @@ def test(ori_image, ori_metadata, ori_gt_polygons, ori_disp_polygons, batch_size
         accuracies = measure_accuracies(ori_gt_polygons, aligned_disp_polygons, thresholds, accuracies_filepath)
         print(accuracies)
 
+    return aligned_disp_polygons
 
-def test_image_with_gt_and_disp_polygons(image_name, ori_image, ori_metadata, ori_gt_polygons, ori_disp_polygons,
+
+def test_align_gt(runs_dirpath, ori_image, ori_metadata, ori_gt_polygons, batch_size, ds_fac_list, run_name_list,
+                  model_disp_max_abs_value, output_dir=None, output_name=None, output_shapefiles=True, properties_list=None):
+    # --- Run the model --- #
+    print("# --- Run the model --- #")
+    aligned_gt_polygons, _ = multires_pipeline.multires_inference(runs_dirpath, ori_image,
+                                                                                     ori_metadata,
+                                                                                     ori_gt_polygons,
+                                                                                     model_disp_max_abs_value,
+                                                                                     batch_size, ds_fac_list,
+                                                                                     run_name_list)
+
+    # --- Save polygons as shapefiles --- #
+    if output_shapefiles:
+        if output_dir is not None and output_name is not None:
+            import geo_utils
+            print("# --- Save polygons as shapefiles --- #")
+            shapefile_filename_format = "{}.aligned_gt_polygons.shp"
+            output_shapefile_filename = shapefile_filename_format.format(output_name, "ori")
+            output_shapefile_filepath = os.path.join(output_dir, output_shapefile_filename)
+            geo_utils.save_shapefile_from_polygons(aligned_gt_polygons, ori_metadata["filepath"],
+                                                   output_shapefile_filepath, properties_list=properties_list)
+        else:
+            print_utils.print_warning("Could not save shapefile as output_dir and/or output_name was not specified.")
+
+    return aligned_gt_polygons
+
+
+def test_image_with_gt_and_disp_polygons(runs_dirpath, image_name, ori_image, ori_metadata, ori_gt_polygons, ori_disp_polygons,
                                          ori_disp_properties_list,
                                          batch_size, ds_fac_list, run_name_list, model_disp_max_abs_value, thresholds,
                                          test_output_dir, output_shapefiles=True):
@@ -139,12 +180,12 @@ def test_image_with_gt_and_disp_polygons(image_name, ori_image, ori_metadata, or
     ori_disp_polygons = polygon_utils.simplify_polygons(ori_disp_polygons, tolerance=1)  # Remove redundant vertices
 
     output_name = image_name
-    test(ori_image, ori_metadata, ori_gt_polygons, ori_disp_polygons, batch_size, ds_fac_list, run_name_list,
+    test(runs_dirpath, ori_image, ori_metadata, ori_gt_polygons, ori_disp_polygons, batch_size, ds_fac_list, run_name_list,
          model_disp_max_abs_value, thresholds, test_output_dir, output_name, output_shapefiles=output_shapefiles,
          properties_list=ori_disp_properties_list)
 
 
-def test_image_with_gt_polygons_and_disp_maps(image_name, ori_image, ori_metadata, ori_gt_polygons,
+def test_image_with_gt_polygons_and_disp_maps(runs_dirpath, image_name, ori_image, ori_metadata, ori_gt_polygons,
                                               ori_normed_disp_field_maps, disp_max_abs_value, batch_size,
                                               ds_fac_list, run_name_list, model_disp_max_abs_value, thresholds,
                                               test_output_dir,
@@ -162,12 +203,12 @@ def test_image_with_gt_polygons_and_disp_maps(image_name, ori_image, ori_metadat
         print("# --- Testing with disp {:02d} --- #".format(i))
         disp_polygons = disp_polygons_list[i]
         output_name = output_name_format.format(image_name, i)
-        test(ori_image, ori_metadata, ori_gt_polygons, disp_polygons, batch_size, ds_fac_list,
+        test(runs_dirpath, ori_image, ori_metadata, ori_gt_polygons, disp_polygons, batch_size, ds_fac_list,
              run_name_list,
              model_disp_max_abs_value, thresholds, test_output_dir, output_name, output_shapefiles=output_shapefiles)
 
 
-def test_detect_new_buildings(image_name, ori_image, ori_metadata, ori_gt_polygons, batch_size, ds_fac_list,
+def test_detect_new_buildings(runs_dirpath, image_name, ori_image, ori_metadata, ori_gt_polygons, batch_size, ds_fac_list,
                               run_name_list, model_disp_max_abs_value, polygonization_params, thresholds,
                               test_output_dir, output_shapefiles=True):
     ori_gt_polygons = polygon_utils.polygons_remove_holes(ori_gt_polygons)  # TODO: Remove
@@ -188,7 +229,7 @@ def test_detect_new_buildings(image_name, ori_image, ori_metadata, ori_gt_polygo
     seg_ds_fac_list = ds_fac_list[-1:]
     seg_run_name_list = run_name_list[-1:]
     print("# --- Run the model --- #")
-    _, segmentation_image = multires_pipeline.multires_inference(ori_image, ori_metadata,
+    _, segmentation_image = multires_pipeline.multires_inference(runs_dirpath, ori_image, ori_metadata,
                                                                  ori_disp_polygons,
                                                                  model_disp_max_abs_value,
                                                                  batch_size, seg_ds_fac_list,
@@ -235,13 +276,13 @@ def test_detect_new_buildings(image_name, ori_image, ori_metadata, ori_gt_polygo
     # print("# --- Align new polygons --- #")
     # print("# --- Run the model --- #")
     # aligned_new_polygons = new_polygons
-    # aligned_new_polygons, segmentation_image = multires_pipeline.multires_inference(ori_image, ori_metadata,
+    # aligned_new_polygons, segmentation_image = multires_pipeline.multires_inference(runs_dirpath, ori_image, ori_metadata,
     #                                                                                 aligned_new_polygons,
     #                                                                                 model_disp_max_abs_value,
     #                                                                                 batch_size, ds_fac_list,
     #                                                                                run_name_list)
     # # for i in range(10):
-    # #     aligned_new_polygons, segmentation_image = multires_pipeline.multires_inference(ori_image, ori_metadata,
+    # #     aligned_new_polygons, segmentation_image = multires_pipeline.multires_inference(runs_dirpath, ori_image, ori_metadata,
     # #                                                                                     aligned_new_polygons,
     # #                                                                                     model_disp_max_abs_value,
     # #                                                                                     batch_size, ds_fac_list[-1:],

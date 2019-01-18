@@ -3,7 +3,6 @@ import os
 import math
 import json
 import random
-import re
 
 import skimage.transform
 import numpy as np
@@ -12,8 +11,11 @@ import tensorflow as tf
 
 import config_aerial_image_multires as config
 
-sys.path.append("../utils")
-import visualization
+sys.path.append("../../../data/AerialImageDataset")
+import read
+
+# sys.path.append("../utils")
+# import visualization
 
 sys.path.append("../../utils")
 import tf_utils
@@ -22,28 +24,10 @@ import image_utils
 import python_utils
 import math_utils
 import dataset_utils
+import print_utils
 
 if python_utils.module_exists("matplotlib.pyplot"):
     import matplotlib.pyplot as plt
-
-
-def load_gt_data(image_filepath, gt_polygons_filepath):
-    if not os.path.exists(image_filepath):
-        print("{} does not exist".format(image_filepath))
-        return None, None
-    if not os.path.exists(gt_polygons_filepath):
-        print("{} does not exist".format(gt_polygons_filepath))
-        return None, None
-
-    image = image_utils.load_image(image_filepath)
-    gt_polygons = np.load(gt_polygons_filepath)
-
-    # try:
-    #     geo_utils.save_shapefile_from_polygons(gt_polygons, image_filepath, gt_polygons_filepath + ".shp")
-    # except:
-    #     pass
-
-    return image, gt_polygons
 
 
 def downsample_gt_data(image, gt_polygons, normed_disp_field_maps, downsampling_factor):
@@ -173,12 +157,14 @@ def save_patch_to_tfrecord(patch, shard_writer):
     shard_writer.write(example.SerializeToString())
 
 
-def process_image(image_filepath, gt_polygons_filepath, patch_stride, patch_res, downsampling_factors, disp_max_abs_value, include_polygons,
+def process_image(dataset_raw_dirpath, image_info, overwrite_polygon_dir_name, patch_stride, patch_res, downsampling_factors, disp_max_abs_value, include_polygons,
                   downsampling_factor_writers):
     """
     Writes to all the writers (one for each resolution) all sample patches extracted from the image at location image_filepath.
 
-    :param image_filepath:
+    :param dataset_raw_dirpath:
+    :param image_info:
+    :param overwrite_polygon_dir_name:
     :param patch_stride:
     :param patch_res:
     :param downsampling_factors:
@@ -187,7 +173,8 @@ def process_image(image_filepath, gt_polygons_filepath, patch_stride, patch_res,
     :param downsampling_factor_writers:
     :return:
     """
-    ori_image, ori_gt_polygons = load_gt_data(image_filepath, gt_polygons_filepath)
+
+    ori_image, ori_metadata, ori_gt_polygons = read.load_gt_data(dataset_raw_dirpath, image_info["city"], image_info["number"], overwrite_polygon_dir_name=overwrite_polygon_dir_name)
 
     if ori_gt_polygons is None:
         return False
@@ -244,100 +231,73 @@ def process_image(image_filepath, gt_polygons_filepath, patch_stride, patch_res,
     return True
 
 
-def process_dataset(images_dir_list, image_extension, gt_polygons_dir_name, gt_polygons_extension,
-                    patch_stride, patch_res,
-                    train_count, val_count, test_count,
+def process_dataset(dataset_fold, dataset_raw_dirpath,
+                    image_info_list, overwrite_polygon_dir_name, patch_stride, patch_res,
                     data_aug_rot,
-                    downsampling_factors, city_min_downsampling_factor,
-                    disp_max_abs_value,
-                    image_index_start=0, image_index_end=-1):
-    """
+                    downsampling_factors,
+                    disp_max_abs_value):
+    print("Processing images from {}".format(dataset_raw_dirpath))
 
-    :param images_dir:
-    :param image_extension:
-    :param patch_stride:
-    :param patch_res:
-    :param train_count:
-    :param val_count:
-    :param test_count:
-    :param data_aug_rot:
-    :param downsampling_factors:
-    :param city_min_downsampling_factor:
-    :param disp_max_abs_value:
-    :param image_index_start:
-    :param image_index_end: Exclusive
-    :return:
-    """
-    print("Processing images from {}".format(images_dir_list))
-    image_filepaths = python_utils.get_dir_list_filepaths(images_dir_list, image_extension)
-    random.shuffle(image_filepaths)
-
-    if -1 < image_index_end:
-        image_index_end = min(len(image_filepaths), image_index_end)
-    else:
-        image_index_end = len(image_filepaths)
-
-    # Create writers
-    fold_writers = {}
-    for dataset_fold in ["train", "val", "test"]:
-        # Create shard writers
-        shard_writers = {}
-        for downsampling_factor in downsampling_factors:
-            filename_format = os.path.join(config.TFRECORDS_DIR,
-                                           config.TFRECORD_FILENAME_FORMAT.format(dataset_fold, downsampling_factor))
-            shard_writer = dataset_utils.TFRecordShardWriter(filename_format, config.RECORDS_PER_SHARD)
-            shard_writers[downsampling_factor] = shard_writer
-        fold_writers[dataset_fold] = shard_writers
-
-    for image_index in range(image_index_start, image_index_end):
-        image_filepath = image_filepaths[image_index]
-        base_filepath = os.path.splitext(image_filepath)[0]
-        image_basename = os.path.basename(base_filepath)
-        gt_polygons_filepath = os.path.join(
-            os.path.dirname(
-                os.path.dirname(image_filepath)
-            ),
-            gt_polygons_dir_name,
-            "{}.{}".format(image_basename, gt_polygons_extension))
-        print("Processing image {}. Progression: {}/{}"
-              .format(image_basename, image_index + 1, len(image_filepaths)))
-
-        # Decide in which dataset to put this image
-        if image_index < train_count:
-            chosen_fold = "train"
-        elif image_index < train_count + val_count:
-            chosen_fold = "val"
-        elif image_index < train_count + val_count + test_count:
-            chosen_fold = "test"
+    for image_index, image_info in enumerate(image_info_list):
+        print("Processing city {}. Progression: {}/{}"
+              .format(image_info["city"], image_index + 1, len(image_info_list)))
+        if "number" in image_info:
+            # This is one image
+            tile_info_list = [image_info]
+        elif "numbers" in image_info:
+            # This is multiple images
+            tile_info_list = [
+                {
+                    "city": image_info["city"],
+                    "number": number,
+                    "min_downsampling_factor": image_info["min_downsampling_factor"],
+                }
+                for number in image_info["numbers"]
+            ]
         else:
-            print("This image is not going to be included!")
+            print_utils.print_warning(
+                "WARNING: image_info dict should have one of those keys: \"number\" or \"numbers\"")
+            tile_info_list = []
 
-        include_polygons = (chosen_fold == "val" or chosen_fold == "test")
-        if data_aug_rot and chosen_fold == "train":
-            # Account for data augmentation when rotating patches on the training set
-            adjusted_patch_res = math.ceil(patch_res * math.sqrt(2))
-            adjusted_patch_stride = math.floor(
-                patch_stride * math.sqrt(
-                    2) / 2)  # Divided by 2 so that no pixels are left out when rotating by 45 degrees
-        else:
-            adjusted_patch_res = patch_res
-            adjusted_patch_stride = patch_stride
+        for tile_info in tile_info_list:
+            image_name = read.IMAGE_NAME_FORMAT.format(city=tile_info["city"], number=tile_info["number"])
+            print("Processing city {}, number {}"
+                  .format(tile_info["city"], tile_info["number"]))
 
-        # Filter out downsampling_factors that are lower than city_min_downsampling_factor
-        city = re.sub("[0-9]+", "", image_basename)
-        image_downsampling_factors = [downsampling_factor for downsampling_factor in downsampling_factors if city_min_downsampling_factor[city] <= downsampling_factor]
+            include_polygons = (dataset_fold == "val" or dataset_fold == "test")
+            if data_aug_rot and dataset_fold == "train":
+                # Account for data augmentation when rotating patches on the training set
+                adjusted_patch_res = math.ceil(patch_res * math.sqrt(2))
+                adjusted_patch_stride = math.floor(
+                    patch_stride * math.sqrt(
+                        2) / 2)  # Divided by 2 so that no pixels are left out when rotating by 45 degrees
+            else:
+                adjusted_patch_res = patch_res
+                adjusted_patch_stride = patch_stride
 
-        process_image(image_filepath, gt_polygons_filepath,
-                      adjusted_patch_stride, adjusted_patch_res,
-                      image_downsampling_factors,
-                      disp_max_abs_value,
-                      include_polygons,
-                      fold_writers[chosen_fold])
+            # Filter out downsampling_factors that are lower than city_min_downsampling_factor
+            image_downsampling_factors = [downsampling_factor for downsampling_factor in downsampling_factors if
+                                          tile_info["min_downsampling_factor"] <= downsampling_factor]
 
-    # Close writers
-    for dataset in ["train", "val", "test"]:
-        for downsampling_factor in downsampling_factors:
-            fold_writers[dataset][downsampling_factor].close()
+            # Create writers
+            writers = {}
+            for downsampling_factor in downsampling_factors:
+                filename_format = os.path.join(config.TFRECORDS_DIR,
+                                               config.TFRECORD_FILEPATH_FORMAT.format(dataset_fold, image_name,
+                                                                                      downsampling_factor))
+                shard_writer = dataset_utils.TFRecordShardWriter(filename_format, config.RECORDS_PER_SHARD)
+                writers[downsampling_factor] = shard_writer
+
+            process_image(dataset_raw_dirpath, tile_info, overwrite_polygon_dir_name,
+                          adjusted_patch_stride, adjusted_patch_res,
+                          image_downsampling_factors,
+                          disp_max_abs_value,
+                          include_polygons,
+                          writers)
+
+            # Close writers
+            for downsampling_factor in downsampling_factors:
+                writers[downsampling_factor].close()
 
 
 def save_metadata(meta_data_filepath, disp_max_abs_value, downsampling_factors):
@@ -361,21 +321,33 @@ def main():
     save_metadata(meta_data_filepath, config.DISP_MAX_ABS_VALUE, config.DOWNSAMPLING_FACTORS)
 
     # Save data
-    process_dataset(config.IMAGES_DIR_LIST,
-                    config.IMAGE_EXTENSION,
-                    config.GT_POLYGONS_DIR_NAME,
-                    config.GT_POLYGONS_EXTENSION,
+    process_dataset("train",
+                    config.DATASET_RAW_DIRPATH,
+                    config.TRAIN_IMAGES,
+                    config.DATASET_OVERWRITE_POLYGON_DIR_NAME,
                     config.TILE_STRIDE,
                     config.TILE_RES,
-                    config.TRAIN_COUNT,
-                    config.VAL_COUNT,
-                    config.TEST_COUNT,
                     config.DATA_AUG_ROT,
                     config.DOWNSAMPLING_FACTORS,
-                    config.CITY_MIN_DOWNSAMPLING_FACTOR,
-                    config.DISP_MAX_ABS_VALUE,
-                    image_index_start=config.IMAGE_INDEX_START,
-                    image_index_end=config.IMAGE_INDEX_END)
+                    config.DISP_MAX_ABS_VALUE)
+    process_dataset("val",
+                    config.DATASET_RAW_DIRPATH,
+                    config.VAL_IMAGES,
+                    config.DATASET_OVERWRITE_POLYGON_DIR_NAME,
+                    config.TILE_STRIDE,
+                    config.TILE_RES,
+                    config.DATA_AUG_ROT,
+                    config.DOWNSAMPLING_FACTORS,
+                    config.DISP_MAX_ABS_VALUE)
+    process_dataset("test",
+                    config.DATASET_RAW_DIRPATH,
+                    config.TEST_IMAGES,
+                    config.DATASET_OVERWRITE_POLYGON_DIR_NAME,
+                    config.TILE_STRIDE,
+                    config.TILE_RES,
+                    config.DATA_AUG_ROT,
+                    config.DOWNSAMPLING_FACTORS,
+                    config.DISP_MAX_ABS_VALUE)
 
 
 if __name__ == "__main__":

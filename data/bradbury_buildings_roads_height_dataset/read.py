@@ -1,59 +1,78 @@
 import os.path
 import csv
-import sys
 import numpy as np
-
-sys.path.append("../utils")
-import visualization
 
 import skimage.io
 
 CITY_METADATA_DICT = {
     "Arlington": {
         "pixelsize": 0.3,
+        "numbers":  [1, 2, 3],
     },
     "Atlanta": {
         "pixelsize": 0.1524,
+        "numbers":  [1, 2, 3],
     },
     "Austin": {
         "pixelsize": 0.1524,
+        "numbers":  [1, 2, 3],
     },
     "DC": {
         "pixelsize": 0.16,
+        "numbers":  [1, 2],
     },
     "NewHaven": {
         "pixelsize": 0.3,
+        "numbers":  [1, 2],
     },
     "NewYork": {
         "pixelsize": 0.1524,
+        "numbers":  [1, 2, 3],
     },
     "Norfolk": {
         "pixelsize": 0.3048,
+        "numbers":  [1, 2, 3],
     },
     "SanFrancisco": {
         "pixelsize": 0.3,
+        "numbers":  [1, 2, 3],
     },
     "Seekonk": {
         "pixelsize": 0.3,
+        "numbers":  [1, 2, 3],
     },
 }
 
 DIRNAME_FORMAT = "{city}"  # City name
 IMAGE_NAME_FORMAT = "{city}_{number:02d}"
-IMAGE_FILENAME_FORMAT = IMAGE_NAME_FORMAT + ".tif"  # City name, number
-POLYGONS_FILENAME_FORMAT = "{city}_{number:02d}_buildingCoord.csv"  # City name, number
+IMAGE_FILENAME_EXTENSION = ".tif"
+POLYGONS_FILENAME_EXTENSION = "_buildingCoord.csv"
+
+
+def get_tile_info_list():
+    tile_info_list = []
+    for city, info in CITY_METADATA_DICT.items():
+        for number in info["numbers"]:
+            image_info = {
+                "city": city,
+                "number": number,
+            }
+            tile_info_list.append(image_info)
+    return tile_info_list
 
 
 def get_image_filepath(raw_dirpath, city, number):
     dirname = DIRNAME_FORMAT.format(city=city)
-    filename = IMAGE_FILENAME_FORMAT.format(city=city, number=number)
+    image_name = IMAGE_NAME_FORMAT.format(city=city, number=number)
+    filename = image_name + IMAGE_FILENAME_EXTENSION
     filepath = os.path.join(raw_dirpath, dirname, filename)
     return filepath
 
 
-def get_polygons_filepath(raw_dirpath, city, number):
+def get_polygons_filepath(raw_dirpath, city, number, polygons_filename_extension):
     dirname = DIRNAME_FORMAT.format(city=city)
-    filename = POLYGONS_FILENAME_FORMAT.format(city=city, number=number)
+    image_name = IMAGE_NAME_FORMAT.format(city=city, number=number)
+    filename = image_name + polygons_filename_extension
     filepath = os.path.join(raw_dirpath, dirname, filename)
     return filepath
 
@@ -80,18 +99,6 @@ def load_image(raw_dirpath, city, number):
     return image_array, image_metadata
 
 
-def load_polygons(raw_dirpath, city, number):
-    filepath = get_polygons_filepath(raw_dirpath, city, number)
-    polygons_coords_list = []
-    with open(filepath, 'r') as coords_csv:
-        csv_reader = csv.reader(coords_csv, delimiter=',')
-        for row_index, row in enumerate(csv_reader):
-            if row_index != 0:  # Skip header
-                polygon_coords = read_csv_row(row)
-                polygons_coords_list.append(polygon_coords)
-    return polygons_coords_list
-
-
 def read_csv_row(row):
     # print("Polygon: {}".format(row[1]))
     coord_list = []
@@ -110,15 +117,56 @@ def read_csv_row(row):
     return coord_array
 
 
-def load_gt_data(raw_dirpath, city, number):
+def load_csv(filepath):
+    polygons_coords_list = []
+    with open(filepath, 'r') as coords_csv:
+        csv_reader = csv.reader(coords_csv, delimiter=',')
+        for row_index, row in enumerate(csv_reader):
+            if row_index != 0:  # Skip header
+                polygon_coords = read_csv_row(row)
+                polygons_coords_list.append(polygon_coords)
+    return polygons_coords_list
+
+
+def load_polygons_from_npy(filepath):
+    try:
+        polygons = np.load(filepath)
+    except FileNotFoundError:
+        print("Filepath {} does not exist".format(filepath))
+        polygons = None
+    return polygons
+
+
+def load_polygons(raw_dirpath, city, number, polygons_filename_extension):
+    filepath = get_polygons_filepath(raw_dirpath, city, number, polygons_filename_extension)
+
+    _, file_extension = os.path.splitext(filepath)
+    if file_extension == ".csv":
+        return load_csv(filepath)
+    elif file_extension == ".npy":
+        return load_polygons_from_npy(filepath)
+    else:
+        print("WARNING: file extension {} is not handled by this script. Use .csv or .npy.".format(file_extension))
+
+    return None
+
+
+def load_gt_data(raw_dirpath, city, number, overwrite_polygons_filename_extension=None):
+    if overwrite_polygons_filename_extension is None:
+        polygons_filename_extension = POLYGONS_FILENAME_EXTENSION
+    else:
+        polygons_filename_extension = overwrite_polygons_filename_extension
+
     # Load image
     image_array, image_metadata = load_image(raw_dirpath, city, number)
 
     # Load CSV data
-    gt_polygons = load_polygons(raw_dirpath, city, number)
+    gt_polygons = load_polygons(raw_dirpath, city, number, polygons_filename_extension)
 
     # TODO: remove
-    # gt_polygons_filepath = get_polygons_filepath(raw_dirpath, city, number)
+    # sys.path.append("../utils")
+    # import visualization
+    # gt_polygons_filepath = get_polygons_filepath(raw_dirpath, POLYGONS_FILENAME_FORMAT, city, number)
     # visualization.save_plot_image_polygons(gt_polygons_filepath + ".polygons.png", image_array, [], gt_polygons, [])
     # TODO end
 

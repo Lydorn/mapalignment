@@ -93,7 +93,7 @@ def crop_center(array, out_shape):
     return out_array
 
 
-def multivariate_gaussian(pos, mu, Sigma):
+def multivariate_gaussian(pos, mu, sigma):
     """Return the multivariate Gaussian distribution on array pos.
 
     pos is an array constructed by packing the meshed arrays of variables
@@ -103,21 +103,21 @@ def multivariate_gaussian(pos, mu, Sigma):
 
 
     n = mu.shape[0]
-    Sigma_det = np.linalg.det(Sigma)
-    Sigma_inv = np.linalg.inv(Sigma)
-    N = np.sqrt((2 * np.pi) ** n * Sigma_det)
-    # This einsum call calculates (x-mu)T.Sigma-1.(x-mu) in a vectorized
+    sigma_det = np.linalg.det(sigma)
+    sigma_inv = np.linalg.inv(sigma)
+    N = np.sqrt((2 * np.pi) ** n * sigma_det)
+    # This einsum call calculates (x-mu)T.sigma-1.(x-mu) in a vectorized
     # way across all the input variables.
 
     # print("\tStarting to create multivariate Gaussian")
     # start = time.time()
 
     # print((pos - mu).shape)
-    # print(Sigma_inv.shape)
+    # print(sigma_inv.shape)
     try:
-        fac = np.einsum('...k,kl,...l->...', pos - mu, Sigma_inv, pos - mu, optimize=True)
+        fac = np.einsum('...k,kl,...l->...', pos - mu, sigma_inv, pos - mu, optimize=True)
     except:
-        fac = np.einsum('...k,kl,...l->...', pos - mu, Sigma_inv, pos - mu)
+        fac = np.einsum('...k,kl,...l->...', pos - mu, sigma_inv, pos - mu)
     # print(fac.shape)
 
     # end = time.time()
@@ -129,7 +129,7 @@ def multivariate_gaussian(pos, mu, Sigma):
 def create_multivariate_gaussian_mixture_map(shape, mode_count, mu_range, sig_scaling):
     shape = np.array(shape)
     # print("Starting to create multivariate Gaussian mixture")
-    main_start = time.time()
+    # main_start = time.time()
 
     dim_count = 2
     downsample_factor = 4
@@ -203,7 +203,9 @@ def create_multivariate_gaussian_mixture_map(shape, mode_count, mu_range, sig_sc
     return gaussian_mixture
 
 
-def create_displacement_field_maps(shape, map_count, modes, gauss_mu_range, gauss_sig_scaling):
+def create_displacement_field_maps(shape, map_count, modes, gauss_mu_range, gauss_sig_scaling, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
     disp_field_maps_list = []
     for disp_field_map_index in range(map_count):
         disp_field_map_normed = create_multivariate_gaussian_mixture_map(shape,

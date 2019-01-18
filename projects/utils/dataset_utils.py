@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 
 
@@ -12,6 +13,7 @@ class TFRecordShardWriter:
 
     def create_new_shard_writer(self):
         filename = self.filepath_format.format(self.current_shard_count)
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         self.writer = tf.python_io.TFRecordWriter(filename)
         self.current_shard_count += 1
 

@@ -1,0 +1,1 @@
+Finish removing use of config*.py files and use .json files instead. This is way some configs are in both "formats".

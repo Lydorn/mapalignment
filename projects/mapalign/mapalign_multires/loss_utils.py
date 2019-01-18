@@ -7,13 +7,11 @@ import sys
 import numpy as np
 import tensorflow as tf
 
-import config
-
 sys.path.append("../../utils")
 import tf_utils
 
 
-def displacement_error(gt, preds, level_loss_coefs, polygon_map):
+def displacement_error(gt, preds, level_loss_coefs, polygon_map, disp_loss_params):
     """
 
     :param gt: Groundtruth displacement map bounded between -1 and 1. Shape [batch, height, width, channels (3)]
@@ -28,9 +26,11 @@ def displacement_error(gt, preds, level_loss_coefs, polygon_map):
         # Compute weight mask
         cropped_polygon_map = tf.image.resize_image_with_crop_or_pad(polygon_map, height, width)
         # TODO: normalize correction_weights
-        correction_weights = 1 / (tf.reduce_sum(tf.reduce_sum(cropped_polygon_map, axis=1), axis=1) + tf.keras.backend.epsilon())
-        weigths = tf.constant([config.DISP_POLYGON_FILL_COEF, config.DISP_POLYGON_OUTLINE_COEF, config.DISP_POLYGON_VERTEX_COEF],
-                              dtype=tf.float32)
+        correction_weights = 1 / (
+                    tf.reduce_sum(tf.reduce_sum(cropped_polygon_map, axis=1), axis=1) + tf.keras.backend.epsilon())
+        weigths = tf.constant(
+            [disp_loss_params["fill_coef"], disp_loss_params["edge_coef"], disp_loss_params["vertex_coef"]],
+            dtype=tf.float32)
         corrected_weights = weigths * correction_weights
         corrected_weights = tf.expand_dims(tf.expand_dims(corrected_weights, axis=1), axis=1)
         weighted_mask = tf.reduce_sum(cropped_polygon_map * corrected_weights, axis=-1)
@@ -53,7 +53,7 @@ def displacement_error(gt, preds, level_loss_coefs, polygon_map):
     return loss
 
 
-def segmentation_error(seg_gt, seg_pred_logits, level_loss_coefs):
+def segmentation_error(seg_gt, seg_pred_logits, level_loss_coefs, seg_loss_params):
     """
 
     :param seg_gt:
@@ -67,7 +67,8 @@ def segmentation_error(seg_gt, seg_pred_logits, level_loss_coefs):
     seg_gt = tf.image.resize_image_with_crop_or_pad(seg_gt, height, width)
     # Add background class to gt segmentation
     if tf_utils.get_tf_version() == "1.4.0":
-        seg_gt_bg = tf.reduce_prod(1 - seg_gt, axis=-1, keep_dims=True)  # Equals 0 if pixel is either fill, outline or vertex. Equals 1 otherwise
+        seg_gt_bg = tf.reduce_prod(1 - seg_gt, axis=-1,
+                                   keep_dims=True)  # Equals 0 if pixel is either fill, outline or vertex. Equals 1 otherwise
     else:
         seg_gt_bg = tf.reduce_prod(1 - seg_gt, axis=-1,
                                    keepdims=True)  # Equals 0 if pixel is either fill, outline or vertex. Equals 1 otherwise
@@ -77,8 +78,9 @@ def segmentation_error(seg_gt, seg_pred_logits, level_loss_coefs):
     # class_sums = tf.reduce_sum(tf.reduce_sum(seg_gt, axis=1), axis=1)
     # seg_class_balance_weights = 1 / (
     #         class_sums + tf.keras.backend.epsilon())
-    seg_class_weights = tf.constant([[config.SEG_BACKGROUND_COEF, config.SEG_POLYGON_FILL_COEF, config.SEG_POLYGON_OUTLINE_COEF, config.SEG_POLYGON_VERTEX_COEF]],
-                          dtype=tf.float32)
+    seg_class_weights = tf.constant([[seg_loss_params["background_coef"], seg_loss_params["fill_coef"],
+                                      seg_loss_params["edge_coef"], seg_loss_params["vertex_coef"]]],
+                                    dtype=tf.float32)
     # balanced_class_weights = seg_class_balance_weights * seg_class_weights
     balanced_class_weights = seg_class_weights
     balanced_class_weights = tf.expand_dims(balanced_class_weights, axis=1)  # Add levels dimension
@@ -106,10 +108,10 @@ def laplacian_penalty(preds, level_loss_coefs):
 
     with tf.name_scope("laplacian_penalty"):
         laplace_k = tf_utils.make_depthwise_kernel([[0.5, 1.0, 0.5],
-                                 [1.0, -6., 1.0],
-                                 [0.5, 1.0, 0.5]], in_channels)
+                                                    [1.0, -6., 1.0],
+                                                    [0.5, 1.0, 0.5]], in_channels)
         # Reshape preds to respect the input format of the depthwise_conv2d op
-        shape = [preds.shape[0]*preds.shape[1]] + preds.get_shape().as_list()[2:]
+        shape = [preds.shape[0] * preds.shape[1]] + preds.get_shape().as_list()[2:]
         reshaped_preds = tf.reshape(preds, shape)
         laplacians = tf.nn.depthwise_conv2d(reshaped_preds, laplace_k, [1, 1, 1, 1], padding='SAME')
         penalty_map = tf.reduce_sum(tf.square(laplacians), axis=-1)

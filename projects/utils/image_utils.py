@@ -30,6 +30,21 @@ def padded_boundingbox(boundingbox, padding):
     return boundingbox_new
 
 
+def center_bbox(spatial_shape, output_shape):
+    """
+    Return a bbox centered in spatial_shape with size output_shape
+
+    :param spatial_shape:
+    :param output_shape:
+    :return:
+    """
+    center = (spatial_shape[0] / 2, spatial_shape[1] / 2)
+    half_output_shape = (output_shape[0] / 2, output_shape[1] / 2)
+    bbox = [center[0] - half_output_shape[0], center[1] - half_output_shape[1], center[0] + half_output_shape[0], center[1] + half_output_shape[1]]
+    bbox = bbox_to_int(bbox)
+    return bbox
+
+
 def bbox_add_margin(bbox, margin):
     bbox_new = bbox.copy()
     bbox_new[0:2] -= margin

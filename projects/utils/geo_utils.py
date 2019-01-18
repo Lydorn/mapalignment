@@ -331,6 +331,15 @@ def indices_of_biggest_intersecting_polygon(polygon_list):
     return keep_index_list
 
 
+def get_pixelsize(filepath):
+    raster = gdal.Open(filepath)
+    gt = raster.GetGeoTransform()
+    pixelsize_x = gt[1]
+    pixelsize_y = -gt[5]
+    pixelsize = (pixelsize_x + pixelsize_y) / 2
+    return pixelsize
+
+
 def main():
     main_dirpath = "/workspace/data/stereo_dataset/raw/leibnitz"
     image_filepath = os.path.join(main_dirpath, "leibnitz_ortho_ref_RGB.tif")

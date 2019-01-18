@@ -1,0 +1,163 @@
+{
+  "data_dir_candidates": [
+    "/local/shared/epitome-polygon-deep-learning/data",
+    // try local node first
+    "/home/nigirard/epitome-polygon-deep-learning/data",
+    "/workspace/data"
+    // try inside docker image]
+  ],
+  "reference_pixel_size": 0.3,
+  // in meters
+  "ds_fac_list": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "ds_repeat_list": [
+    1,
+    4,
+    16,
+    64
+  ],
+  // to balance more samples in batches, otherwise there would be too few samples with downsampling_factor=8
+  "image_dynamic_range": [
+    -1,
+    1
+  ],
+  "disp_map_dynamic_range_fac": 0.5,
+  // sets disp_map values in [-0.5, 0.5]
+  "disp_max_abs_value": 4,
+  "tfrecords_partial_dirpath_list": [
+    "AerialImageDataset/tfrecords.mapalign.multires.aligned_noisy_1",
+    "bradbury_buildings_roads_height_dataset/tfrecords.mapalign.multires.aligned_noisy_1"
+    // "mapping_challenge_dataset/tfrecords.mapalign.multires"
+  ],
+  "tfrecord_filename_format": "ds_fac_{:02d}.{{:06d}}.tfrecord",
+  // dataset fold, downsampling factor, shard index
+  "keep_poly_prob": 0.1,
+  // default: 0.1  // default: 0.5  // each input misaligned polygon has a 50% change to be kept and 50% to be removed
+  "data_aug": true,
+  //  --- model(s) --- //
+  "input_res": 220,
+  // input image
+  "add_image_input": true,
+  "image_channel_count": 3,
+  "image_feature_base_count": 32,
+  // default: 16 * 2
+
+  // input poly map
+  "add_poly_map_input": true,
+  "poly_map_channel_count": 3,
+  // (0: area, 1: edge, 2: vertex)
+  "poly_map_feature_base_count": 16,
+  // default: 8 * 2
+
+  "common_feature_base_count": 48,
+  // default: 24 * 2
+  "pool_count": 3,
+  // number of 2x2 pooling operations (min: 1). results in (model_pool_count + 1) resolution levels.
+
+  "add_disp_output": true,
+  "disp_channel_count": 2,
+  // displacement map channel count (0: i, 1: j)
+
+  "add_seg_output": true,
+  "seg_channel_count": 4,
+  // segmentation channel count (0: background, 1: area, 2: edge, 3: vertex)
+
+  // losses
+  "loss_params": {
+    "disp": {
+      // implicitly we have disp_polygon_background_coef: 0.0
+      "fill_coef": 0.1,
+      "edge_coef": 1,
+      "vertex_coef": 10,
+      "coef": 100
+    },
+    "seg": {
+      "background_coef": 0.05,
+      "fill_coef": 0.1,
+      "edge_coef": 1,
+      "vertex_coef": 10,
+      "coef": 50
+    },
+    "laplacian_penalty_coef": 0
+    // default: 10000  // TODO: experiment again with non-zero values (now that the laplacian penalty bug is fixed)
+  },
+
+  // each level's prediction has a different loss coefficient that can also be changed over time
+  // note: len(level_loss_coefs_params) must be equal to model_pool_count
+  // note: there are (model_pool_count + 1) resolution levels in total but the last level does not have prediction outputs
+  // to compute a level loss on (it is the bottom of the "u" of the u-net)
+  // note: values must be floats
+  "level_loss_coefs_params": [
+    // level 0, same resolution as input image
+    {
+      "boundaries": [
+        2500,
+        5000,
+        7500
+      ],
+      "values": [
+        0.50,
+        0.75,
+        0.9,
+        1.0
+      ]
+    },
+    {
+      "boundaries": [
+        2500,
+        5000,
+        7500
+      ],
+      "values": [
+        0.35,
+        0.20,
+        0.1,
+        0.0
+      ]
+    },
+    {
+      "boundaries": [
+        2500,
+        5000,
+        7500
+      ],
+      "values": [
+        0.15,
+        0.05,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+
+  // training
+  "plot_results": false,
+  // is extremely slow when true inside docker...
+
+  "learning_rate_params": {
+    "boundaries": [
+      25000
+    ],
+    "values": [
+      1e-4,
+      0.5e-4
+    ]
+  },
+  "weight_decay": 1e-4,
+  // default: 1e-6
+  "dropout_keep_prob": 1.0,
+  "max_iter": 100000,
+  "perform_validation_step": false, // Default: true
+  "train_summary_step": 250,
+  "val_summary_step": 1000,
+  "checkpoint_step": 1000,
+  // outputs
+  "model_name": "mapalign_mutlires",
+  "runs_dirname": "runs.igarss2019",
+  "logs_dirname": "logs",
+  "checkpoints_dirname": "checkpoints"
+}

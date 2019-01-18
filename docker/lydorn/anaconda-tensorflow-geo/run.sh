@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker run --runtime=nvidia -it --rm -v ~/mapalignment:/workspace lydorn/anaconda-tensorflow-geo
+docker run --runtime=nvidia -it --rm -v ~/epitome-polygon-deep-learning:/workspace lydorn/anaconda-tensorflow-geo
