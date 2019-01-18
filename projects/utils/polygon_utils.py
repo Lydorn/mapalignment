@@ -1,5 +1,3 @@
-import sys
-import os
 import math
 import random
 import numpy as np
@@ -9,10 +7,6 @@ from PIL import Image, ImageDraw, ImageFilter
 import skimage
 
 import python_utils
-
-sys.path.append(os.path.join(
-    os.path.dirname(__file__), "../3rdparty/smallest-enclosing-circle"))
-import smallestenclosingcircle
 
 if python_utils.module_exists("skimage.measure"):
     from skimage.measure import approximate_polygon
@@ -298,11 +292,6 @@ def pad_polygon(vertices, target_length):
     padding = np.tile(vertices[-1], [padding_length, 1])
     padded_vertices = np.append(vertices, padding, axis=0)
     return padded_vertices
-
-
-def compute_smallest_enclosing_circle(polygon):
-    circle = smallestenclosingcircle.make_circle(polygon)
-    return circle
 
 
 def compute_diameter(polygon):
