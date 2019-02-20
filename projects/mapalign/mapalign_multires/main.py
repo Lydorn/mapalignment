@@ -58,7 +58,7 @@ def get_args():
         '-r', '--runs_dirpath',
         default=RUNS_DIRPATH,
         type=str,
-        help='Name of the config file, excluding the .json file extension.')
+        help='Name of directory where the models can be found.')
     argparser.add_argument(
         '-d', '--ds_fac',
         default=DS_FAC_LIST,
