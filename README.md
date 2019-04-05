@@ -45,8 +45,11 @@ so that the folder structure is ```projects/mapalign/mapalign_multires/runs.igar
 
 #### 2 - Execute script
 Execute the [projects/mapalign/mapalign_multires/main.py](projects/mapalign/mapalign_multires/main.py) script: ```python main.py```.
-Use ```python main.py -h``` for available options. The most relevant ones are ```--filepath``` to change the GeoTIFF image used and ```--batch_size``` which you can adapt depending on the available memory.
-The script will first download the OSM annotation from the internet, align them with the specified networks and save the aligned annotations.
+Use ```python main.py -h``` for available options. The most relevant ones are:
+- ```--image``` to change the GeoTIFF image used
+- ```--shapefile``` to specify the shapefile to align (if not specified, will load and align OSM annotations)
+- ```--batch_size``` which you can adapt depending on the available GPU memory
+The script will save the aligned annotations in the same folder as the image.
 
 
 ### Train your own models

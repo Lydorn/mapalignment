@@ -20,7 +20,8 @@ import geo_utils
 
 # -- Default script arguments: --- #
 CONFIG = "config"
-FILEPATH = "geo_images/test_image.tif"
+IMAGE = "geo_images/test_image.tif"
+SHAPEFILE = None
 BATCH_SIZE = 12
 RUNS_DIRPATH = "runs.igarss2019"  # Best models: runs.igarss2019
 # Should be in descending order:
@@ -45,8 +46,13 @@ def get_args():
         type=str,
         help='Name of the config file, excluding the .json file extension.')
     argparser.add_argument(
-        '-f', '--filepath',
-        default=FILEPATH,
+        '-i', '--image',
+        default=IMAGE,
+        type=str,
+        help='Filepath to the GeoTIFF image.')
+    argparser.add_argument(
+        '-s', '--shapefile',
+        default=SHAPEFILE,
         type=str,
         help='Filepath to the GeoTIFF image.')
     argparser.add_argument(
@@ -80,6 +86,14 @@ def read_image(filepath):
     return image_array, image_metadata
 
 
+def normalize(image, mu=None, sigma=None):
+    if mu is None:
+        mu = np.mean(image)
+    if sigma is None:
+        sigma = np.std(image)
+    return (image - mu) / sigma
+
+
 def get_osm_annotations(filepath):
     filename_no_extension = os.path.splitext(filepath)[0]
     npy_filepath = filename_no_extension + ".npy"
@@ -97,6 +111,11 @@ def get_osm_annotations(filepath):
     return gt_polygons
 
 
+def get_shapefile_annotations(image_filepath, shapefile_filepath):
+    polygons, _ = geo_utils.get_polygons_from_shapefile(image_filepath, shapefile_filepath)
+    return polygons
+
+
 def save_annotations(image_filepath, polygons):
     filename_no_extension = os.path.splitext(image_filepath)[0]
     npy_filepath = filename_no_extension + ".aligned.npy"
@@ -105,9 +124,57 @@ def save_annotations(image_filepath, polygons):
     geo_utils.save_shapefile_from_polygons(polygons, image_filepath, shp_filepath)
 
 
-def main():
+def get_abs_path(filepath):
     working_dir = os.path.dirname(os.path.abspath(__file__))
+    if os.path.isabs(filepath):
+        abs_path = filepath
+    else:
+        abs_path = os.path.join(working_dir, filepath)
+    return abs_path
 
+
+def print_hist(hist):
+    print("hist:")
+    for (bin, count) in zip(hist[1], hist[0]):
+        print("{}: {}".format(bin, count))
+
+
+def clip_image(image, min, max):
+    image = np.maximum(np.minimum(image, max), min)
+    return image
+
+
+def get_min_max(image, std_factor=2):
+    mu = np.mean(image, axis=(0, 1))
+    std = np.std(image, axis=(0, 1))
+    min = mu - std_factor * std
+    max = mu + std_factor * std
+    return min, max
+
+
+def stretch_image(image, min, max, target_min, target_max):
+    image = (image - min) / (max - min)
+    image = image * (target_max - target_min) + target_min
+    return image
+
+
+def check_polygons_in_image(image, polygons):
+    """
+    Allows some vertices to be outside the image. Return s true if at least 1 is inside.
+    :param image:
+    :param polygons:
+    :return:
+    """
+    height = image.shape[0]
+    width = image.shape[1]
+    min_i = min([polygon[:, 0].min() for polygon in polygons])
+    min_j = min([polygon[:, 1].min() for polygon in polygons])
+    max_i = max([polygon[:, 0].max() for polygon in polygons])
+    max_j = max([polygon[:, 1].max() for polygon in polygons])
+    return not (max_i < 0 or height < min_i or max_j < 0 or width < min_j)
+
+
+def main():
     # --- Process args --- #
     args = get_args()
     config = run_utils.load_config(args.config)
@@ -120,22 +187,54 @@ def main():
 
     # --- Read image --- #
     print_utils.print_info("Reading image...")
-    if os.path.isabs(args.filepath):
-        absolute_filepath = args.filepath
+    image_filepath = get_abs_path(args.image)
+    image, image_metadata = read_image(image_filepath)
+    image = clip_image(image, 0, 255)
+
+    # hist = np.histogram(image)
+    # print_hist(hist)
+
+    im_min, im_max = get_min_max(image, std_factor=3)
+
+    # print("min: {}, max: {}".format(im_min, im_max))
+
+    image = stretch_image(image, im_min, im_max, 0, 255)
+    image = clip_image(image, 0, 255)
+
+    # hist = np.histogram(image)
+    # print_hist(hist)
+
+    print("Image stats:")
+    print("\tShape: {}".format(image.shape))
+    print("\tMin: {}".format(image.min()))
+    print("\tMax: {}".format(image.max()))
+
+    # --- Read shapefile if it exists --- #
+    if args.shapefile is not None:
+        shapefile_filepath = get_abs_path(args.shapefile)
+        gt_polygons = get_shapefile_annotations(image_filepath, shapefile_filepath)
+
     else:
-        absolute_filepath = os.path.join(working_dir, args.filepath)
-    image, image_metadata = read_image(absolute_filepath)
+        # --- Load or fetch OSM building data --- #
+        gt_polygons = get_osm_annotations(image_filepath)
 
-    # --- Load or fetch OSM building data --- #
-    gt_polygons = get_osm_annotations(absolute_filepath)
+    # --- Print polygon info --- #
+    print("Polygons stats:")
+    print("\tCount: {}".format(len(gt_polygons)))
+    print("\tMin: {}".format(min([polygon.min() for polygon in gt_polygons])))
+    print("\tMax: {}".format(max([polygon.max() for polygon in gt_polygons])))
 
-    print_utils.print_info("Aligned OSM building annotations...")
+    if not check_polygons_in_image(image, gt_polygons):
+        print_utils.print_error("ERROR: polygons are not inside the image. This is most likely due to using the wrong projection when reading the input shapefile. Aborting...")
+        exit()
+
+    print_utils.print_info("Aligning building annotations...")
     aligned_polygons = test.test_align_gt(args.runs_dirpath, image, image_metadata, gt_polygons, args.batch_size,
                                           args.ds_fac, run_name_list, config["disp_max_abs_value"],
                                           output_shapefiles=False)
 
-    print_utils.print_info("Saving aligned OSM building annotations...")
-    save_annotations(args.filepath, aligned_polygons)
+    print_utils.print_info("Saving aligned building annotations...")
+    save_annotations(args.image, aligned_polygons)
 
 
 if __name__ == '__main__':
