@@ -1,6 +1,6 @@
 Docker container with the following installed:
 - CUDA, cuDNN, Anaconda3 and Tensorflow 1.6 (from lyforn/anaconda-tensorflow image)
-- OpenCV 3.2
+- OpenCV 3.1.0
 - skimage
 - pyproj
 - gdal

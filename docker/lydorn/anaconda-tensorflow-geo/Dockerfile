@@ -5,7 +5,7 @@ MAINTAINER Nicolas Girard <nicolas.jp.girard@gmail.com>
 RUN apt-get update && apt-get install -y libgtk2.0
 
 # Image manipulation
-RUN conda install -c menpo opencv3
+RUN conda install -c menpo opencv3=3.1.0
 
 #RUN conda install -c conda-forge scikit-image -y
 # Commented-out because it gets installed by pip later:

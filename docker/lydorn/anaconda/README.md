@@ -1,6 +1,7 @@
 Docker container with the following installed:
 - CUDA and cuDNN (from lydorn/dl-base)
-- Anaconda3
+- Anaconda3 5.1.0
+- Python 3.6.8
 
 Used in other Dockerfiles
 

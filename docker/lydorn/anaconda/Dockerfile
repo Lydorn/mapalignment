@@ -9,5 +9,8 @@ RUN /bin/bash ~/anaconda.sh -b -p /opt/conda && \
     rm ~/anaconda.sh
 ENV PATH /opt/conda/bin:$PATH
 
+# Install version 3.6.8 of Python
+RUN conda install python=3.6.8
+
 # Update conda
 RUN conda update conda
