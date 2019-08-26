@@ -4,7 +4,16 @@
     <img src="projects/mapalign/mapalign_multires/com/inference_anim/render/mapalignment_anim.gif" width="250" height="250" />
 </p>
 
-This is the official code for the paper:
+This is the official code for the papers:
+
+**Noisy Supervision for Correcting Misaligned Cadaster Maps Without Perfect Ground Truth Data**\
+[Nicolas Girard](https://www-sop.inria.fr/members/Nicolas.Girard/),
+[Guillaume Charpiat](https://www.lri.fr/~gcharpia/),
+[Yuliya Tarabalka](https://www-sop.inria.fr/members/Yuliya.Tarabalka/)\
+IGARSS 2019\
+**[[Paper](https://www-sop.inria.fr/members/Nicolas.Girard/pdf/Girard_2019_IGARSS_paper.pdf)]**
+
+And:
 
 **Aligning and Updating Cadaster Maps with Aerial Images by Multi-Task, Multi-Resolution Deep Learning**\
 [Nicolas Girard](https://www-sop.inria.fr/members/Nicolas.Girard/),
