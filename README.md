@@ -89,6 +89,15 @@ The useful scripts and instructions for performing inference and training of the
 ### If you use this code for your own research, please cite:
 
 ```
+@InProceedings{Girard_2019_IGARSS,
+  title = {{Noisy Supervision for Correcting Misaligned Cadaster Maps Without Perfect Ground Truth Data}},
+  author = {Girard, Nicolas and Charpiat, Guillaume and Tarabalka, Yuliya},
+  booktitle = {IEEE International Geoscience and Remote Sensing Symposium (IGARSS)},
+  ADDRESS = {Valencia, Spain},
+  year = {2019},
+  month = Jul,
+}
+
 @InProceedings{Girard_2018_ACCV,
 author = {Girard, Nicolas and Charpiat, Guillaume and Tarabalka, Yuliya},
 title = {Aligning and Updating Cadaster Maps with Aerial Images by Multi-Task, Multi-Resolution Deep Learning},
