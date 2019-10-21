@@ -8,6 +8,7 @@ import model
 sys.path.append("../../utils")
 import run_utils
 import polygon_utils
+import print_utils
 
 
 def rescale_data(image, polygons, scale):
@@ -122,7 +123,10 @@ def multires_inference(runs_dirpath, ori_image, ori_metadata, ori_disp_polygons,
     # Launch the resolution chain pipeline:
     for index, (ds_fac, run_name) in enumerate(zip(ds_fac_list, run_name_list)):
         print("# --- downsampling_factor: {} --- #".format(ds_fac))
-        aligned_disp_polygons, segmentation_image = inference(runs_dirpath, ori_image, ori_metadata, aligned_disp_polygons, model_disp_max_abs_value, batch_size, ds_fac, run_name)
+        try:
+            aligned_disp_polygons, segmentation_image = inference(runs_dirpath, ori_image, ori_metadata, aligned_disp_polygons, model_disp_max_abs_value, batch_size, ds_fac, run_name)
+        except ValueError as e:
+            print_utils.print_warning(str(e))
 
     return aligned_disp_polygons, segmentation_image
 

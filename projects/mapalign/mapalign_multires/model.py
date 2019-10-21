@@ -3,15 +3,21 @@ import os
 import time
 import tensorflow as tf
 import numpy as np
+from tqdm import tqdm
 
 import model_utils
+# import model_utils_concat_interm_outputs
 import loss_utils
+
+sys.path.append("../evaluate_funcs")  # Evaluation functions
+import evaluate_utils
 
 sys.path.append("../utils")  # Mapalign utils
 import visualization
 
 sys.path.append("../../utils")  # All project utils
 import python_utils
+import polygonization_utils
 import tf_utils
 import image_utils
 import print_utils
@@ -75,26 +81,42 @@ class MapAlignModel:
         assert type(model_name) == str, "model_name should be a string, not a {}".format(type(model_name))
         assert type(input_res) == int, "input_res should be an int, not a {}".format(type(input_res))
         assert type(add_image_input) == bool, "add_image_input should be a bool, not a {}".format(type(add_image_input))
-        assert type(image_channel_count) == int, "image_channel_count should be an int, not a {}".format(type(image_channel_count))
-        assert type(image_feature_base_count) == int, "image_feature_base_count should be an int, not a {}".format(type(image_feature_base_count))
-        assert type(add_poly_map_input) == bool, "add_poly_map_input should be a bool, not a {}".format(type(add_poly_map_input))
-        assert type(poly_map_channel_count) == int, "poly_map_channel_count should be an int, not a {}".format(type(poly_map_channel_count))
-        assert type(poly_map_feature_base_count) == int, "poly_map_feature_base_count should be an int, not a {}".format(type(poly_map_feature_base_count))
-        assert type(common_feature_base_count) == int, "common_feature_base_count should be an int, not a {}".format(type(common_feature_base_count))
+        assert type(image_channel_count) == int, "image_channel_count should be an int, not a {}".format(
+            type(image_channel_count))
+        assert type(image_feature_base_count) == int, "image_feature_base_count should be an int, not a {}".format(
+            type(image_feature_base_count))
+        assert type(add_poly_map_input) == bool, "add_poly_map_input should be a bool, not a {}".format(
+            type(add_poly_map_input))
+        assert type(poly_map_channel_count) == int, "poly_map_channel_count should be an int, not a {}".format(
+            type(poly_map_channel_count))
+        assert type(
+            poly_map_feature_base_count) == int, "poly_map_feature_base_count should be an int, not a {}".format(
+            type(poly_map_feature_base_count))
+        assert type(common_feature_base_count) == int, "common_feature_base_count should be an int, not a {}".format(
+            type(common_feature_base_count))
         assert type(pool_count) == int, "pool_count should be an int, not a {}".format(type(pool_count))
         assert type(add_disp_output) == bool, "add_disp_output should be a bool, not a {}".format(type(add_disp_output))
-        assert type(disp_channel_count) == int, "disp_channel_count should be an int, not a {}".format(type(disp_channel_count))
+        assert type(disp_channel_count) == int, "disp_channel_count should be an int, not a {}".format(
+            type(disp_channel_count))
         assert type(add_seg_output) == bool, "add_seg_output should be a bool, not a {}".format(type(add_seg_output))
-        assert type(seg_channel_count) == int, "seg_channel_count should be an int, not a {}".format(type(seg_channel_count))
+        assert type(seg_channel_count) == int, "seg_channel_count should be an int, not a {}".format(
+            type(seg_channel_count))
         assert type(output_res) == int, "output_res should be an int, not a {}".format(type(output_res))
         assert type(batch_size) == int, "batch_size should be an int, not a {}".format(type(batch_size))
         assert type(loss_params) == dict, "loss_params should be a dict, not a {}".format(type(loss_params))
-        assert type(level_loss_coefs_params) == list, "level_loss_coefs_params should be a list, not a {}".format(type(level_loss_coefs_params))
-        assert type(learning_rate_params) == dict, "learning_rate_params should be a dict, not a {}".format(type(learning_rate_params))
+        assert type(level_loss_coefs_params) == list, "level_loss_coefs_params should be a list, not a {}".format(
+            type(level_loss_coefs_params))
+        assert type(learning_rate_params) == dict, "learning_rate_params should be a dict, not a {}".format(
+            type(learning_rate_params))
         assert type(weight_decay) == float, "weight_decay should be a float, not a {}".format(type(weight_decay))
-        assert type(image_dynamic_range) == list, "image_dynamic_range should be a string, not a {}".format(type(image_dynamic_range))
-        assert type(disp_map_dynamic_range_fac) == float, "disp_map_dynamic_range_fac should be a float, not a {}".format(type(disp_map_dynamic_range_fac))
-        assert type(disp_max_abs_value) == float or type(disp_max_abs_value) == int, "disp_max_abs_value should be a number, not a {}".format(type(disp_max_abs_value))
+        assert type(image_dynamic_range) == list, "image_dynamic_range should be a string, not a {}".format(
+            type(image_dynamic_range))
+        assert type(
+            disp_map_dynamic_range_fac) == float, "disp_map_dynamic_range_fac should be a float, not a {}".format(
+            type(disp_map_dynamic_range_fac))
+        assert type(disp_max_abs_value) == float or type(
+            disp_max_abs_value) == int, "disp_max_abs_value should be a number, not a {}".format(
+            type(disp_max_abs_value))
 
         # Re-init Tensorflow
         self.init_tf()
@@ -112,6 +134,13 @@ class MapAlignModel:
 
         self.common_feature_base_count = common_feature_base_count
         self.pool_count = pool_count
+
+        # Check if input_res is high enough:
+        min_input_res = self.get_min_input_res(self.pool_count)
+        if self.input_res < min_input_res:
+            raise ValueError("WARNING: the given input_res = {} is too small. "
+                                      "The model can handle images of resolution {} minimum. Aborting..."
+                                      .format(self.input_res, min_input_res))
 
         self.add_disp_output = add_disp_output
         self.disp_channel_count = disp_channel_count
@@ -231,6 +260,10 @@ class MapAlignModel:
 
         # Create optimizer
         self.train_step = self.build_optimizer()
+
+        # Compute gradient ops
+        self.grad_x_op = None
+        self.grad_y_op = None
 
     @staticmethod
     def init_tf():
@@ -522,15 +555,16 @@ class MapAlignModel:
         """
         checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
         if checkpoint and checkpoint.model_checkpoint_path:  # Check if the model has a checkpoint
-            print_utils.print_info("Restoring {} checkpoint {}".format(self.model_name, checkpoint.model_checkpoint_path))
+            print_utils.print_info(
+                "Restoring {} checkpoint {}".format(self.model_name, checkpoint.model_checkpoint_path))
             try:
                 saver.restore(sess, checkpoint.model_checkpoint_path)
             except tf.errors.InvalidArgumentError:
                 print_utils.print_error("ERROR: could not load checkpoint.\n"
-                      "\tThis is likely due to: .\n"
-                      "\t\t -  the model graph definition has changed from the checkpoint thus weights do not match\n"
-                      .format(checkpoints_dir)
-                      )
+                                        "\tThis is likely due to: .\n"
+                                        "\t\t -  the model graph definition has changed from the checkpoint thus weights do not match\n"
+                                        .format(checkpoints_dir)
+                                        )
                 exit()
             return True
         else:
@@ -638,7 +672,8 @@ class MapAlignModel:
                         val_gt_disp_field_map_batch, \
                         val_disp_polygon_map_batch, \
                         val_pred_disp_field_map_batch, val_pred_seg_batch = self.validate(sess, val_dataset_tensors,
-                                                                                          merged_summaries, val_writer, i,
+                                                                                          merged_summaries, val_writer,
+                                                                                          i,
                                                                                           plot=plot_results)
                 # Save checkpoint
                 if i % checkpoint_step == (checkpoint_step - 1):
@@ -674,6 +709,12 @@ class MapAlignModel:
         :return:
         """
         spatial_shape = image_array.shape[:2]
+
+        if spatial_shape[0] < self.input_res or spatial_shape[1] < self.input_res:
+            raise ValueError("WARNING: image patch should have spatial shape ({}, {}) instead of {}. "
+                             "Adapt patch size accordingly."
+                             .format(self.input_res, self.input_res, spatial_shape))
+
         # Format inputs
         image_array = image_array[:, :, :3]  # Remove alpha channel if any
         image_array = (image_array / 255) * (self.image_dynamic_range[1] - self.image_dynamic_range[0]) + \
@@ -800,6 +841,115 @@ class MapAlignModel:
 
         return complete_pred_field_map, complete_segmentation_image
 
+    def compute_patch_gradients(self, ori_image, polygon_map_array, checkpoints_dir):
+        """
+        Runs inference on image_array and ori_gt_array with model checkpoint in checkpoints_dir
+
+        :param image_array:
+        :param ori_gt_array:
+        :param checkpoints_dir:
+        :return:
+        """
+        spatial_shape = ori_image.shape[:2]
+        # Format inputs
+        image = ori_image[:, :, :3]  # Remove alpha channel if any
+        image = (image / 255) * (self.image_dynamic_range[1] - self.image_dynamic_range[0]) + \
+                self.image_dynamic_range[0]
+        polygon_map_array = polygon_map_array / 255
+
+        # Init patch_gradient_list
+        patch_info_list = []
+
+        # Iterate over every patch and compute all gradients for this patch
+        patch_bbox_list = image_utils.compute_patch_boundingboxes(spatial_shape,
+                                                                  stride=self.input_res,
+                                                                  patch_res=self.input_res)
+        y_x = self.level_0_disp_pred[:, :, :, 0]
+        y_y = self.level_0_disp_pred[:, :, :, 1]
+        xs = tf.trainable_variables()  # All trainable variables
+        grad_x_ops = tf.gradients(y_x, xs, name='gradients')
+        grad_y_ops = tf.gradients(y_y, xs, name='gradients')
+        grad_x_op = [grad_x_op for grad_x_op in grad_x_ops if grad_x_op is not None]
+        grad_y_op = [grad_y_op for grad_y_op in grad_y_ops if grad_y_op is not None]
+
+        # Saver
+        saver = tf.train.Saver(save_relative_paths=True)
+        with tf.Session() as sess:
+            # Restore checkpoint
+            restore_checkpoint_success = self.restore_checkpoint(sess, saver, checkpoints_dir)
+            if not restore_checkpoint_success:
+                sys.exit('No checkpoint found in {}'.format(checkpoints_dir))
+
+            # Loop over every patch
+            for index, bbox in enumerate(tqdm(patch_bbox_list, desc="Computing patch gradients")):
+                patch_image = image[bbox[0]:bbox[2],
+                              bbox[1]:bbox[3], :]
+                patch_polygon_map = polygon_map_array[bbox[0]:bbox[2],
+                                    bbox[1]:bbox[3], :]
+
+                batch_image = np.expand_dims(patch_image, axis=0)
+                batch_polygon_map = np.expand_dims(patch_polygon_map, axis=0)
+
+                feed_dict = {
+                    self.input_image: batch_image,
+                    self.input_disp_polygon_map: batch_polygon_map,
+                    self.keep_prob: 1.0
+                }
+                patch_grads_x, patch_grads_y = sess.run([grad_x_op, grad_y_op], feed_dict=feed_dict)
+
+                patch_ori_image = ori_image[bbox[0]:bbox[2],
+                                  bbox[1]:bbox[3], :]
+                patch_info = {
+                    "bbox": bbox,
+                    "image": patch_ori_image,
+                    "grads": {
+                        "x": patch_grads_x,
+                        "y": patch_grads_y,
+                    },
+                }
+                patch_info_list.append(patch_info)
+
+        return patch_info_list
+
+    def setup_compute_grads(self):
+        y_x = self.level_0_disp_pred[:, :, :, 0]
+        y_y = self.level_0_disp_pred[:, :, :, 1]
+        xs = tf.trainable_variables()  # All trainable variables
+        grad_x_ops = tf.gradients(y_x, xs, name='gradients')
+        grad_y_ops = tf.gradients(y_y, xs, name='gradients')
+        self.grad_x_op = [grad_x_op for grad_x_op in grad_x_ops if grad_x_op is not None]
+        self.grad_y_op = [grad_y_op for grad_y_op in grad_y_ops if grad_y_op is not None]
+
+    def compute_grads(self, sess, image, polygon_map):
+        """
+        Runs inference on image and polygon_map
+
+        :param image:
+        :param polygon_map:
+        :return:
+        """
+        # Format inputs
+        image = image[:, :, :3]  # Remove alpha channel if any
+        image = (image / 255) * (self.image_dynamic_range[1] - self.image_dynamic_range[0]) + \
+                self.image_dynamic_range[0]
+        polygon_map = polygon_map / 255
+
+        batch_image = np.expand_dims(image, axis=0)
+        batch_polygon_map = np.expand_dims(polygon_map, axis=0)
+
+        feed_dict = {
+            self.input_image: batch_image,
+            self.input_disp_polygon_map: batch_polygon_map,
+            self.keep_prob: 1.0
+        }
+        patch_level_0_disp_pred, patch_grads_x, patch_grads_y = sess.run([self.level_0_disp_pred, self.grad_x_op, self.grad_y_op], feed_dict=feed_dict)
+
+        grads = {
+            "x": patch_grads_x,
+            "y": patch_grads_y,
+        }
+        return grads, patch_level_0_disp_pred[0]
+
     @staticmethod
     def get_output_res(input_res, pool_count):
         """
@@ -809,7 +959,11 @@ class MapAlignModel:
         :param pool_count:
         :return:
         """
-        return model_utils.get_output_res(input_res, pool_count)
+        x, non_zero_remainder = model_utils.get_output_res(input_res, pool_count)
+        if non_zero_remainder:
+            print("WARNING: a pooling operation will result in a non integer res, the network will automatically add "
+                  "padding there. The output of this function is not guaranteed to be exact.")
+        return x
 
     @staticmethod
     def get_input_res(output_res, pool_count):
@@ -820,21 +974,40 @@ class MapAlignModel:
         :param pool_count:
         :return:
         """
-        return model_utils.get_input_res(output_res, pool_count)
+        x, non_zero_remainder = model_utils.get_input_res(output_res, pool_count)
+        if non_zero_remainder:
+            print("WARNING: a pooling operation will result in a non integer res, the network will automatically add "
+                  "padding there. The output of this function is not guaranteed to be exact.")
+        return x
+
+    @staticmethod
+    def get_min_input_res(pool_count):
+        """
+        Returns the minimum input resolution the network can handle.
+        Because of no-padding, the resolution of the ouput is smaller than the input and
+        thus there is a limit input resolution that works)
+        This function has to be re-written if the model architecture changes
+
+        :param pool_count:
+        :return:
+        """
+        x = model_utils.get_min_input_res(pool_count)
+        return x
 
 
 def main(_):
-    input_res = 348
     pool_count = 3
-    print("Get output_res from input_res = {}".format(input_res))
-    output_res = MapAlignModel.get_output_res(input_res, pool_count)
-    print("output_res = {}".format(output_res))
 
-    output_res = 228
-    pool_count = 3
-    print("Get input_res from output_res = {}".format(output_res))
+    input_res = 124
+    output_res = MapAlignModel.get_output_res(input_res, pool_count)
+    print("With input res = {}, the network will output res = {}".format(input_res, output_res))
+
+    output_res = 4
     input_res = MapAlignModel.get_input_res(output_res, pool_count)
-    print("input_res = {}".format(input_res))
+    print("For an output res = {}, the network will need an input res = {}".format(output_res, input_res))
+
+    min_input_res = MapAlignModel.get_min_input_res(pool_count)
+    print("Minimum input res the model can handle: {}".format(min_input_res))
 
 
 if __name__ == '__main__':

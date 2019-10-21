@@ -11,6 +11,8 @@ import overpy
 from pyproj import Proj, transform
 
 import polygon_utils
+import math_utils
+import print_utils
 
 # --- Params --- #
 
@@ -138,21 +140,10 @@ def compute_image_to_epsg_mat(coor, gt):
 
 
 def apply_transform_mat(polygon_epsg_space, transform_mat):
-    polygon_epsg_space_homogeneous = convert_to_homogeneous(polygon_epsg_space)
+    polygon_epsg_space_homogeneous = math_utils.to_homogeneous(polygon_epsg_space)
     polygon_image_space_homogeneous = np.matmul(polygon_epsg_space_homogeneous, transform_mat)
-    polygon_image_space = convert_to_euclidian(polygon_image_space_homogeneous)
+    polygon_image_space = math_utils.to_euclidian(polygon_image_space_homogeneous)
     return polygon_image_space
-
-
-def convert_to_homogeneous(array):
-    ones = np.ones((array.shape[0], 1))
-    array = np.append(array, ones, axis=1)
-    return array
-
-
-def convert_to_euclidian(array_homogeneous):
-    array = array_homogeneous[:, 0:2] / array_homogeneous[:, 2:3]
-    return array
 
 
 def get_polygons_from_osm(image_filepath, tag=""):
@@ -190,6 +181,10 @@ def get_polygons_from_shapefile(image_filepath, input_shapefile_filepath):
 
         # Extract polygon:
         polygon = np.array(parsed_json["geometry"]["coordinates"][0])
+        assert len(polygon.shape) == 2, "polygon should have shape (n, d)"
+        if 2 < polygon.shape[1]:
+            print_utils.print_warning("WARNING: polygon from shapefile has shape {}. Will discard extra values to have polygon with shape ({}, 2)".format(polygon.shape, polygon.shape[0]))
+            polygon = polygon[:, :2]
         polygon_epsg_space = polygon
         polygon_image_space = apply_transform_mat(polygon_epsg_space, transform_mat)
         polygon_image_space = polygon_utils.swap_coords(polygon_image_space)
@@ -295,7 +290,7 @@ def save_shapefile_from_polygons(polygons, image_filepath, output_shapefile_file
 def indices_of_biggest_intersecting_polygon(polygon_list):
     """
     Assumes polygons which intersect follow each other on the order given by polygon_list.
-    This avoids the uge complexity of looking for an intesection between every polygon.
+    This avoids the huge complexity of looking for an intersection between every polygon.
 
     :param ori_gt_polygons:
     :return:
@@ -361,38 +356,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

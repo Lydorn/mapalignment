@@ -386,12 +386,12 @@ def get_output_res(input_res, pool_count):
     :return:
     """
     current_res = input_res
-    warning_non_zero_remainder = False
+    non_zero_remainder = False
     # branch_image
     for i in range(pool_count):
         current_res -= 4  # 2 conv3x3
         current_res, r = divmod(current_res, 2)  # pool
-        warning_non_zero_remainder = warning_non_zero_remainder or bool(r)
+        non_zero_remainder = non_zero_remainder or bool(r)
     current_res -= 4  # 2 conv3x3 of the last layer
     # common_part
     current_res -= 4  # 2 conv3x3
@@ -399,10 +399,10 @@ def get_output_res(input_res, pool_count):
     for i in range(pool_count):
         current_res *= 2  # upsample
         current_res -= 4  # 2 conv3x3
-    if warning_non_zero_remainder:
+    if non_zero_remainder:
         print(
             "WARNING: a pooling operation will result in a non integer res, the network will automatically add padding there. The output of this function is not garanteed to be exact.")
-    return int(current_res)
+    return int(current_res), non_zero_remainder
 
 
 def get_input_res(output_res, pool_count):
@@ -414,12 +414,12 @@ def get_input_res(output_res, pool_count):
     :return:
     """
     current_res = output_res
-    warning_non_zero_remainder = False
+    non_zero_remainder = False
     # branch_disp
     for i in range(pool_count):
         current_res += 4  # 2 conv3x3
         current_res, r = divmod(current_res, 2)  # upsample
-        warning_non_zero_remainder = warning_non_zero_remainder or bool(r)
+        non_zero_remainder = non_zero_remainder or bool(r)
     # common_part
     current_res += 4  # 2 conv3x3
     # branch_image
@@ -427,7 +427,25 @@ def get_input_res(output_res, pool_count):
     for i in range(pool_count):
         current_res *= 2  # pool
         current_res += 4  # 2 conv3x3
-    if warning_non_zero_remainder:
-        print(
-            "WARNING: a pooling operation will result in a non integer res, the network will automatically add padding there. The output of this function is not garanteed to be exact.")
-    return int(current_res)
+
+
+    return int(current_res), non_zero_remainder
+
+
+def get_min_input_res(pool_count):
+    """
+    Returns the minimum input resolution the network can handle.
+    Because of no-padding, the resolution of the ouput is smaller than the input and
+    thus there is a limit input resolution that works)
+    This function has to be re-written if the model architecture changes
+
+    :param pool_count:
+    :return:
+    """
+    min_input_res = None
+    output_res = 0
+    non_zero_remainder = True
+    while non_zero_remainder:
+        output_res += 1
+        min_input_res, non_zero_remainder = get_input_res(output_res, pool_count)
+    return min_input_res

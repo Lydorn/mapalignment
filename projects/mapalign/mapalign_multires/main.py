@@ -54,7 +54,7 @@ def get_args():
         '-s', '--shapefile',
         default=SHAPEFILE,
         type=str,
-        help='Filepath to the GeoTIFF image.')
+        help='Filepath to the shapefile.')
     argparser.add_argument(
         '-b', '--batch_size',
         default=BATCH_SIZE,
@@ -71,14 +71,23 @@ def get_args():
         type=int,
         nargs='+',
         help='Downscaling factors. Should be a list of descending integers. Used to retrieve run names')
+    argparser.add_argument(
+        '--pixelsize',
+        type=float,
+        help='Set pixel size (in meters) of the image. Useful when the image does not have this value in its metadata.')
 
     args = argparser.parse_args()
     return args
 
 
-def read_image(filepath):
+def read_image(filepath, pixelsize=None):
     image_array = skimage.io.imread(filepath)
-    pixelsize = geo_utils.get_pixelsize(filepath)
+    if pixelsize is None:
+        pixelsize = geo_utils.get_pixelsize(filepath)
+    assert type(pixelsize) == float, "pixelsize should be float, not {}".format(type(pixelsize))
+    if pixelsize < 1e-3:
+        print_utils.print_warning("WARNING: pixel size of image is detected to be {}m which seems very small to be correct. "
+              "If problems occur specify pixelsize with the pixelsize command-line argument".format(pixelsize))
     image_metadata = {
         "filepath": filepath,
         "pixelsize": pixelsize,
@@ -188,7 +197,7 @@ def main():
     # --- Read image --- #
     print_utils.print_info("Reading image...")
     image_filepath = get_abs_path(args.image)
-    image, image_metadata = read_image(image_filepath)
+    image, image_metadata = read_image(image_filepath, args.pixelsize)
     image = clip_image(image, 0, 255)
 
     # hist = np.histogram(image)
