@@ -75,6 +75,17 @@ class DispFieldMapsPatchCreator:
 # --- --- #
 
 
+def to_homogeneous(array):
+    new_array = np.ones((array.shape[0], array.shape[1] + 1), dtype=array.dtype)
+    new_array[..., :-1] = array
+    return new_array
+
+
+def to_euclidian(array_homogeneous):
+    array = array_homogeneous[:, 0:2] / array_homogeneous[:, 2:3]
+    return array
+
+
 def stretch(array):
     mini = np.min(array)
     maxi = np.max(array)
@@ -218,10 +229,44 @@ def create_displacement_field_maps(shape, map_count, modes, gauss_mu_range, gaus
     return disp_field_maps
 
 
+def get_h_mat(t, theta, scale_offset, shear, p):
+    """
+    Computes the homography matrix given the parameters
+    See https://medium.com/uruvideo/dataset-augmentation-with-random-homographies-a8f4b44830d4
+    (fixed mistake in H_a)
+
+    :param t: 2D translation vector
+    :param theta: Scalar angle
+    :param scale_offset: 2D scaling vector
+    :param shear: 2D shearing vector
+    :param p: 2D projection vector
+    :return: h_mat: shape (3, 3)
+    """
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    h_e = np.array([
+        [cos_theta, -sin_theta, t[0]],
+        [sin_theta, cos_theta, t[1]],
+        [0, 0, 1],
+    ])
+    h_a = np.array([
+        [1 + scale_offset[0], shear[1], 0],
+        [shear[0], 1 + scale_offset[1], 0],
+        [0, 0, 1],
+    ])
+    h_p = np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [p[0], p[1], 1],
+    ])
+    h_mat = h_e @ h_a @ h_p
+    return h_mat
+
+
 if CV2:
     def find_homography_4pt(src, dst):
         """
-        Estimates the homography that transofmrs src points into dst points.
+        Estimates the homography that transforms src points into dst points.
         Then converts the matrix representation into the 4 points representation.
 
         :param src:
@@ -245,12 +290,13 @@ if CV2:
 
 
     def convert_h_4pt_to_mat(h_4pt):
-        src_4pt = np.array([[
+        src_4pt = np.array([
             [-1, -1],
             [1, -1],
             [1, 1],
             [-1, 1],
-        ]], dtype=np.float64)
+        ], dtype=np.float32)
+        h_4pt = h_4pt.astype(np.float32)
         h_mat = cv2.getPerspectiveTransform(src_4pt, h_4pt)
         return h_mat
 

@@ -15,6 +15,11 @@ if python_utils.module_exists("matplotlib.pyplot"):
     import matplotlib.pyplot as plt
 
 
+def get_image_size(filepath):
+    im = Image.open(filepath)
+    return im.size
+
+
 def load_image(image_filepath):
     image = Image.open(image_filepath)
     image.load()
@@ -112,13 +117,18 @@ else:
         print("cv2 is not available, the apply_displacement_fields_to_image(image, disp_field_maps) function cannot work!")
 
 
+def get_axis_patch_count(length, stride, patch_res):
+    total_double_padding = patch_res - stride
+    patch_count = max(1, int(math.ceil((length - total_double_padding) / stride)))
+    return patch_count
+
+
 def compute_patch_boundingboxes(image_size, stride, patch_res):
     im_rows = image_size[0]
     im_cols = image_size[1]
 
-    total_double_padding = patch_res - stride
-    row_patch_count = max(1, int(math.ceil((im_rows - total_double_padding) / stride)))
-    col_patch_count = max(1, int(math.ceil((im_cols - total_double_padding) / stride)))
+    row_patch_count = get_axis_patch_count(im_rows, stride, patch_res)
+    col_patch_count = get_axis_patch_count(im_cols, stride, patch_res)
 
     patch_boundingboxes = []
     for i in range(0, row_patch_count):
@@ -136,7 +146,7 @@ def compute_patch_boundingboxes(image_size, stride, patch_res):
                 col_slice_end = im_cols
                 col_slice_begin = col_slice_end - patch_res
 
-            patch_boundingbox = np.array([row_slice_begin, col_slice_begin, row_slice_end, col_slice_end])
+            patch_boundingbox = np.array([row_slice_begin, col_slice_begin, row_slice_end, col_slice_end], dtype=np.int)
             assert row_slice_end - row_slice_begin == col_slice_end - col_slice_begin == patch_res, "ERROR: patch does not have the requested shape"
             patch_boundingboxes.append(patch_boundingbox)
 
@@ -184,6 +194,22 @@ def crop_or_pad_image_with_boundingbox(image, patch_boundingbox):
         print("Image input does not have the right shape/")
         patch = None
     return patch
+
+
+def make_grid(images, padding=2, pad_value=0):
+    nmaps = images.shape[0]
+    ymaps = int(math.floor(math.sqrt(nmaps)))
+    xmaps = nmaps // ymaps
+    height, width = int(images.shape[1] + padding), int(images.shape[2] + padding)
+    grid = np.zeros((height * ymaps + padding, width * xmaps + padding, images.shape[3])) + pad_value
+    k = 0
+    for y in range(ymaps):
+        for x in range(xmaps):
+            if k >= nmaps:
+                break
+            grid[y * height + padding:(y+1) * height, x * width + padding:(x+1) * width, :] = images[k]
+            k = k + 1
+    return grid
 
 
 if __name__ == "__main__":

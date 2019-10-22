@@ -1,3 +1,5 @@
+import sys
+import os
 import math
 import random
 import numpy as np
@@ -7,6 +9,10 @@ from PIL import Image, ImageDraw, ImageFilter
 import skimage
 
 import python_utils
+
+sys.path.append(os.path.join(
+    os.path.dirname(__file__), "../3rdparty/smallest-enclosing-circle"))
+import smallestenclosingcircle
 
 if python_utils.module_exists("skimage.measure"):
     from skimage.measure import approximate_polygon
@@ -64,10 +70,10 @@ def l2diffs(polygon1, polygon2):
     Computes vertex-wise L2 difference between the two polygons.
     As the two polygons may not have the same starting vertex,
     all shifts are considred and the shift resulting in the minimum mean L2 difference is chosen
-    
-    :param polygon1: 
-    :param polygon2: 
-    :return: 
+
+    :param polygon1:
+    :param polygon2:
+    :return:
     """
     # Make polygons of equal length
     if len(polygon1) != len(polygon2):
@@ -212,6 +218,10 @@ def scale_bounding_box(bounding_box, scale):
     return scaled_bounding_box
 
 
+def pad_bounding_box(bbox, pad):
+    return [bbox[0] + pad, bbox[1] + pad, bbox[2] - pad, bbox[3] - pad]
+
+
 def compute_bounding_box(polygon, scale=1, boundingbox_margin=0, fit=None):
     # Compute base bounding box
     bounding_box = [np.min(polygon[:, 0]), np.min(polygon[:, 1]), np.max(polygon[:, 0]), np.max(polygon[:, 1])]
@@ -272,6 +282,12 @@ def strip_redundant_vertex(vertices, epsilon=1):
     return new_vertices
 
 
+def remove_doubles(vertices, epsilon=0.1):
+    dists = np.linalg.norm(np.roll(vertices, -1, axis=0) - vertices, axis=-1)
+    new_vertices = vertices[epsilon < dists]
+    return new_vertices
+
+
 def simplify_polygon(polygon, tolerance=1):
     approx_polygon = approximate_polygon(polygon, tolerance=tolerance)
     return approx_polygon
@@ -292,6 +308,11 @@ def pad_polygon(vertices, target_length):
     padding = np.tile(vertices[-1], [padding_length, 1])
     padded_vertices = np.append(vertices, padding, axis=0)
     return padded_vertices
+
+
+def compute_smallest_enclosing_circle(polygon):
+    circle = smallestenclosingcircle.make_circle(polygon)
+    return circle
 
 
 def compute_diameter(polygon):
@@ -327,7 +348,8 @@ def plot_polygon(polygon, color=None, draw_labels=True, label_direction=1, index
 
 def plot_polygons(polygons, color=None, draw_labels=True, label_direction=1, indexing="xy", axis=None):
     for polygon in polygons:
-        plot_polygon(polygon, color=color, draw_labels=draw_labels, label_direction=label_direction, indexing=indexing, axis=axis)
+        plot_polygon(polygon, color=color, draw_labels=draw_labels, label_direction=label_direction, indexing=indexing,
+                     axis=axis)
 
 
 def compute_edge_normal(edge):
@@ -435,13 +457,20 @@ def crop_polygon_to_patch_if_touch(polygon, bounding_box):
         return None
 
 
-def crop_polygons_to_patch_if_touch(polygons, bounding_box):
+def crop_polygons_to_patch_if_touch(polygons, bounding_box, return_indices=False):
+    if return_indices:
+        indices = []
     cropped_polygons = []
-    for polygon in polygons:
+    for i, polygon in enumerate(polygons):
         cropped_polygon = crop_polygon_to_patch_if_touch(polygon, bounding_box)
         if cropped_polygon is not None:
             cropped_polygons.append(cropped_polygon)
-    return cropped_polygons
+            if return_indices:
+                indices.append(i)
+    if return_indices:
+        return cropped_polygons, indices
+    else:
+        return cropped_polygons
 
 
 def crop_polygons_to_patch(polygons, bounding_box):
@@ -835,16 +864,21 @@ def compute_angle_two_points(point_source, point_target):
 
 
 def compute_angle_three_points(point_source, point_target1, point_target2):
-    squared_dist_source_target1 = math.pow((point_source[0] - point_target1[0]), 2) + math.pow((point_source[1] - point_target1[1]), 2)
-    squared_dist_source_target2 = math.pow((point_source[0] - point_target2[0]), 2) + math.pow((point_source[1] - point_target2[1]), 2)
-    squared_dist_target1_target2 = math.pow((point_target1[0] - point_target2[0]), 2) + math.pow((point_target1[1] - point_target2[1]), 2)
+    squared_dist_source_target1 = math.pow((point_source[0] - point_target1[0]), 2) + math.pow(
+        (point_source[1] - point_target1[1]), 2)
+    squared_dist_source_target2 = math.pow((point_source[0] - point_target2[0]), 2) + math.pow(
+        (point_source[1] - point_target2[1]), 2)
+    squared_dist_target1_target2 = math.pow((point_target1[0] - point_target2[0]), 2) + math.pow(
+        (point_target1[1] - point_target2[1]), 2)
     dist_source_target1 = math.sqrt(squared_dist_source_target1)
     dist_source_target2 = math.sqrt(squared_dist_source_target2)
     try:
-        cos = (squared_dist_source_target1 + squared_dist_source_target2 - squared_dist_target1_target2) / (2 * dist_source_target1 * dist_source_target2)
+        cos = (squared_dist_source_target1 + squared_dist_source_target2 - squared_dist_target1_target2) / (
+                    2 * dist_source_target1 * dist_source_target2)
     except ZeroDivisionError:
         return float('inf')
-    cos = max(min(cos, 1), -1)  # Avoid some math domain error due to cos being slightly bigger than 1 (from floating point operations)
+    cos = max(min(cos, 1),
+              -1)  # Avoid some math domain error due to cos being slightly bigger than 1 (from floating point operations)
     angle = math.acos(cos)
     return angle
 

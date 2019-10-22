@@ -9,7 +9,9 @@ import json
 import random
 
 import print_utils
+import python_utils
 
+# Stolen from Docker:
 NAME_SET = set([
     # Muhammad ibn Jābir al-Ḥarrānī al-Battānī was a founding father of astronomy. https://en.wikipedia.org/wiki/Mu%E1%B8%A5ammad_ibn_J%C4%81bir_al-%E1%B8%A4arr%C4%81n%C4%AB_al-Batt%C4%81n%C4%AB
     "albattani",
@@ -534,7 +536,7 @@ NAME_SET = set([
 ])
 
 
-def setup_run_dir(runs_dirpath, run_name=None, new_run=False):
+def setup_run_dir(runs_dirpath, run_name=None, new_run=False, check_exists=False):
     """
     If new_run is True, creates a new directory:
         If run_name is None, generate a random name
@@ -542,13 +544,16 @@ def setup_run_dir(runs_dirpath, run_name=None, new_run=False):
 
     If new_run is False, return an existing directory:
         if run_name is None, return the last created directory (from timestamp)
-        else return the last created directory (from timestamp) whose name starts with run_name.
+        else return the last created directory (from timestamp) whose name starts with run_name,
+        if that does not exist and check_exists is False create a new run with run_name,
+        if check_exists is True, then raise an error.
 
     Special case: if there is no existing runs, the new_run is not taken into account and the function behaves like new_run is True.
 
     :param runs_dirpath: Parent directory path of all the runs
     :param run_name:
     :param new_run:
+    :param check_exists:
     :return: Run directory path. The directory name is in the form "run_name | timestamp"
     """
     # Create runs directory of it does not exist
@@ -564,7 +569,7 @@ def setup_run_dir(runs_dirpath, run_name=None, new_run=False):
             # Create another directory name for the run, excluding the existing names
             existing_run_names = [existing_run_dirname.split(" | ")[0] for existing_run_dirname in
                                   existing_run_dirnames]
-            name_timestamped = create_random_name_timestamped(exclude_list=existing_run_names)
+            name_timestamped = create_free_name_timestamped(exclude_list=existing_run_names)
         current_run_dirpath = os.path.join(runs_dirpath, name_timestamped)
         os.mkdir(current_run_dirpath)
     else:
@@ -579,7 +584,10 @@ def setup_run_dir(runs_dirpath, run_name=None, new_run=False):
                 filtered_last_index = filtered_existing_run_timestamps.index(max(filtered_existing_run_timestamps))
                 current_run_dirname = filtered_existing_run_dirnames[filtered_last_index]
             else:
-                raise ValueError("run name \"{}\" was not found in directory \"{}\"".format(run_name, runs_dirpath))
+                if check_exists:
+                    raise FileNotFoundError("Run '{}' does not exist.".format(run_name))
+                else:
+                    return setup_run_dir(runs_dirpath, run_name=run_name, new_run=True)
         else:
             # Pick last run dir based on timestamp
             existing_run_timestamps = [existing_run_dirname.split(" | ")[1] for existing_run_dirname in
@@ -597,14 +605,15 @@ def create_name_timestamped(name):
     return name_timestamped
 
 
-def create_random_name_timestamped(exclude_list=None):
+def create_free_name_timestamped(exclude_list=None):
     if exclude_list is not None:
         names = list(NAME_SET - set(exclude_list))
     else:
         names = list(NAME_SET)
     assert 0 < len(
-        names), "In create_random_name_timestamped(), all possible names have been used. Cannot create a new name without a collision!"
-    name = random.choice(names)
+        names), "In create_random_name_timestamped(), all possible names have been used. Cannot create a new name without a collision! Delete some runs to continue..."
+    sorted_names = sorted(names)
+    name = sorted_names[0]
     name_timestamped = create_name_timestamped(name)
     return name_timestamped
 
@@ -617,6 +626,13 @@ def setup_run_subdirs(run_dir, logs_dirname="logs", checkpoints_dirname="checkpo
     if not os.path.exists(checkpoints_dir):
         os.makedirs(checkpoints_dir)
     return logs_dir, checkpoints_dir
+
+
+def wipe_run_subdirs(run_dir, logs_dirname="logs", checkpoints_dirname="checkpoints"):
+    logs_dir = os.path.join(run_dir, logs_dirname)
+    checkpoints_dir = os.path.join(run_dir, checkpoints_dirname)
+    python_utils.wipe_dir(logs_dir)
+    python_utils.wipe_dir(checkpoints_dir)
 
 
 def save_config(config, config_dirpath):
