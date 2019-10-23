@@ -108,7 +108,7 @@ def get_osm_annotations(filepath):
     npy_filepath = filename_no_extension + ".npy"
     if os.path.exists(npy_filepath):
         print_utils.print_info("Loading OSM building data from disc...")
-        gt_polygons = np.load(npy_filepath)
+        gt_polygons = np.load(npy_filepath, allow_pickle=True)
     else:
         print_utils.print_info("Fetching OSM building data from the internet...")
         gt_polygons = geo_utils.get_polygons_from_osm(filepath, tag="building")

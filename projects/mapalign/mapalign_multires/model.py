@@ -17,7 +17,7 @@ import visualization
 
 sys.path.append("../../utils")  # All project utils
 import python_utils
-import polygonization_utils
+import polygon_utils
 import tf_utils
 import image_utils
 import print_utils
