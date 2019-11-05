@@ -50,13 +50,20 @@ def create_dataset_filename_list(tfrecords_dir_list, tfrecord_filename_format, d
     assert len(downsampling_factors) == len(resolution_file_repeats), \
         "Downsampling_factors and sample_resolution_prob_weights must have the same number of elements"
     assert all_items_are_integers(resolution_file_repeats), "All repeat count should be integers"
+
     dataset_filename_list = []
     for tfrecords_dir in tfrecords_dir_list:
-        for downsampling_factor, resolution_file_repeat in zip(downsampling_factors, resolution_file_repeats):
-            shard_filepath_format = os.path.join(tfrecords_dir, tfrecord_filename_format.format(dataset, downsampling_factor))
-            shard_filepath_list = get_all_shards(shard_filepath_format)
-            repeated_filepaths = shard_filepath_list * resolution_file_repeat  # Repeat filepaths
-            dataset_filename_list.extend(repeated_filepaths)
+        # Find dataset dir
+        dataset_dir = os.path.join(tfrecords_dir, dataset)
+        # Find all images in dataset dir
+        image_dir_name_list = os.listdir(dataset_dir)
+        for image_dir_name in image_dir_name_list:
+            image_dir = os.path.join(dataset_dir, image_dir_name)
+            for downsampling_factor, resolution_file_repeat in zip(downsampling_factors, resolution_file_repeats):
+                shard_filepath_format = os.path.join(image_dir, tfrecord_filename_format.format(downsampling_factor))
+                shard_filepath_list = get_all_shards(shard_filepath_format)
+                repeated_filepaths = shard_filepath_list * resolution_file_repeat  # Repeat filepaths
+                dataset_filename_list.extend(repeated_filepaths)
     return dataset_filename_list
 
 
@@ -425,15 +432,15 @@ def main():
     print(tfrecords_dir_list)
     # downsampling_factors = [1, 2, 4, 8]
     # resolution_file_repeats = [1, 4, 16, 64]
-    tfrecord_filename_format = "{}.ds_fac_{:02d}.{{:06d}}.tfrecord"
+    tfrecord_filename_format = "ds_fac_{:02d}.{{:06d}}.tfrecord"
     downsampling_factors = [1]
     resolution_file_repeats = [1]
     dataset_filename_list = create_dataset_filename_list(tfrecords_dir_list, tfrecord_filename_format,
                                                          downsampling_factors,
                                                          dataset="train",
                                                          resolution_file_repeats=resolution_file_repeats)
-    print("dataset_filename_list:")
-    print(dataset_filename_list)
+    print("Length of dataset_filename_list:")
+    print(len(dataset_filename_list))
     patch_outer_res = 220
     patch_inner_res = 100
     padding = (patch_outer_res - patch_inner_res) // 2
@@ -555,7 +562,7 @@ def main():
             segmentation = gt_polygon_map_batch[0][padding:-padding, padding:-padding, :]
             skimage.io.imsave("segmentation.png", segmentation)
 
-            input("Press <Enter> to continue...")
+            # input("Press <Enter> to continue...")
 
         coord.request_stop()
         coord.join(threads)
