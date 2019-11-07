@@ -31,7 +31,7 @@ if python_utils.module_exists("matplotlib.pyplot"):
 
 
 def downsample_gt_data(image, gt_polygons, normed_disp_field_maps, downsampling_factor):
-    downsampled_image = skimage.transform.rescale(image, 1 / downsampling_factor, order=3, preserve_range=True)
+    downsampled_image = skimage.transform.rescale(image, 1 / downsampling_factor, order=3, preserve_range=True, multichannel=True)
     downsampled_image = downsampled_image.astype(image.dtype)
     downsampled_gt_polygons = polygon_utils.rescale_polygon(gt_polygons, 1 / downsampling_factor)
     downsampled_normed_disp_field_maps = np.empty((normed_disp_field_maps.shape[0],
@@ -39,7 +39,7 @@ def downsample_gt_data(image, gt_polygons, normed_disp_field_maps, downsampling_
                                                    round(normed_disp_field_maps.shape[2] / downsampling_factor),
                                                    normed_disp_field_maps.shape[3]))
     for i in range(normed_disp_field_maps.shape[0]):
-        downsampled_normed_disp_field_maps[i] = skimage.transform.rescale(normed_disp_field_maps[i], 1 / downsampling_factor, order=3, preserve_range=True)
+        downsampled_normed_disp_field_maps[i] = skimage.transform.rescale(normed_disp_field_maps[i], 1 / downsampling_factor, order=3, preserve_range=True, multichannel=True)
     return downsampled_image, downsampled_gt_polygons, downsampled_normed_disp_field_maps
 
 

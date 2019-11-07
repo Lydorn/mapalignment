@@ -39,7 +39,7 @@ def downsample_gt_data(image, metadata, gt_polygons, normed_disp_field_maps, dow
     # A downsampling_factor of 2 results in a final pixel_size equal to 2 * config.REFERENCE_PIXEL_SIZE
     corrected_downsampling_factor = downsampling_factor * config.REFERENCE_PIXEL_SIZE / metadata["pixelsize"]
     scale = 1 / corrected_downsampling_factor
-    downsampled_image = skimage.transform.rescale(image, scale, order=3, preserve_range=True)
+    downsampled_image = skimage.transform.rescale(image, scale, order=3, preserve_range=True, multichannel=True)
     downsampled_image = downsampled_image.astype(image.dtype)
     downsampled_gt_polygons = polygon_utils.rescale_polygon(gt_polygons, scale)
     downsampled_normed_disp_field_maps = np.empty((normed_disp_field_maps.shape[0],
@@ -51,7 +51,7 @@ def downsample_gt_data(image, metadata, gt_polygons, normed_disp_field_maps, dow
     for i in range(normed_disp_field_maps.shape[0]):
         downsampled_normed_disp_field_maps[i] = skimage.transform.rescale(normed_disp_field_maps[i],
                                                                           scale, order=3,
-                                                                          preserve_range=True)
+                                                                          preserve_range=True, multichannel=True)
     return downsampled_image, downsampled_gt_polygons, downsampled_normed_disp_field_maps
 
 
