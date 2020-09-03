@@ -2,4 +2,4 @@
 
 set -e
 
-nvidia-docker build -t lydorn/dl-base --rm .
+docker build -t lydorn/dl-base --rm .

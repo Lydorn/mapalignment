@@ -36,11 +36,16 @@ RUN pip install overpy
 # Install shapely
 RUN conda install -c conda-forge shapely -y
 
-# Install pycocotools
+# --- Install pycocotools
 #RUN pip install git+https://github.com/crowdai/coco.git#subdirectory=PythonAPI
+# Remove imageio files prior to the instalation of scikit-image requiring imageio to be upgraded:
+RUN rm -rf /opt/conda/lib/python3.6/site-packages/imageio*
+
 RUN pip install -U --no-cache-dir scikit-image
 RUN pip install -U --no-cache-dir cython
+RUN conda install numpy=1.19.1
 RUN pip install --no-cache-dir "git+https://github.com/philferriere/cocoapi.git#egg=pycocotools&subdirectory=PythonAPI"
+# ---
 
 RUN conda install -c conda-forge jsmin
 

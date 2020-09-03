@@ -6,4 +6,4 @@ cd ../dl-base
 sh build.sh
 
 cd ../anaconda
-nvidia-docker build -t lydorn/anaconda --rm .
+docker build -t lydorn/anaconda --rm .

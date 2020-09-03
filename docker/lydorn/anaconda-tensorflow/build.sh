@@ -6,4 +6,4 @@ cd ../anaconda
 sh build.sh
 
 cd ../anaconda-tensorflow
-nvidia-docker build -t lydorn/anaconda-tensorflow --rm .
+docker build -t lydorn/anaconda-tensorflow --rm .

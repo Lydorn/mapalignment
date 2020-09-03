@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker run --runtime=nvidia -it --rm -v ~/epitome-polygon-deep-learning:/workspace lydorn/dl-base
+docker run --rm -it --init --gpus all --ipc=host --network=host -v ~/mapalignment:/workspace -v ~/data:/data -e NVIDIA_VISIBLE_DEVICES=0 lydorn/dl-base

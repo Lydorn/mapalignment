@@ -13,4 +13,4 @@ ENV PATH /opt/conda/bin:$PATH
 RUN conda install python=3.6.8
 
 # Update conda
-RUN conda update conda
+#RUN conda update -n base conda
